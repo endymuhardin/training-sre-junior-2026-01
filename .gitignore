@@ -1,0 +1,5 @@
+.DS_Store
+big_atm_log.txt
+node_modules
+package-lock.json
+.package-lock.json
