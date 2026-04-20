@@ -81,4 +81,4 @@ def print_hourly_summary(rolling_data, window_hours):
 
 if __name__ == "__main__":
     # Anda bisa mengganti window_hours ke 3, 6, atau 24 sesuai kebutuhan simulasi
-    parse_hourly_rolling_logs("spring_boot_payment.log", window_hours=1)
+    parse_hourly_rolling_logs("spring_boot_payment.log", window_hours=24)
