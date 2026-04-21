@@ -1,0 +1,20 @@
+---
+pg_app_dir: /opt/payment-gateway
+pg_log_dir: /var/log/payment-gateway
+pg_service_name: payment-gateway
+pg_host: 127.0.0.1
+pg_port: 3000
+pg_success_rate: 0.92
+pg_run_user: root
+pg_run_group: root
+pg_source_dir: "{{ playbook_dir }}/../../sample-apps/payment-gateway"
+pg_source_files:
+  - package.json
+  - config/default.json
+  - src/app.js
+  - src/config.js
+  - src/logger.js
+  - src/routes/payment.js
+  - src/services/simulator.js
+  - src/services/bankConnector.js
+  - src/services/paymentService.js

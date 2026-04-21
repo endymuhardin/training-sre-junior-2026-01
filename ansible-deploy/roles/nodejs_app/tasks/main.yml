@@ -1,63 +1,108 @@
 ---
+# Deployment role: aplikasi ExpressJS Payment Gateway Simulator
+# Source code berada di repo pada {{ pg_source_dir }}
+
 - name: Instal Node.js LTS
   dnf:
     name: nodejs
     state: present
 
-- name: Buat direktori aplikasi
-  file:
-    path: /opt/express-app
-    state: directory
-    mode: '0755'
+# --- Bersih-bersih artefak aplikasi hello-world lama ---
 
-- name: Copy source code aplikasi
-  copy:
-    src: app.js
-    dest: /opt/express-app/app.js
+- name: Cek apakah service express-app lama masih terpasang
+  stat:
+    path: /etc/systemd/system/express-app.service
+  register: old_unit
 
-- name: Init npm dan install Express
-  shell: |
-    npm init -y
-    npm install express
-  args:
-    chdir: /opt/express-app
-    creates: /opt/express-app/package.json
-
-- name: Buat systemd service unit
-  copy:
-    dest: /etc/systemd/system/express-app.service
-    content: |
-      [Unit]
-      Description=ExpressJS Hello World App
-      After=network.target
-
-      [Service]
-      Type=simple
-      User=root
-      WorkingDirectory=/opt/express-app
-      ExecStart=/usr/bin/node app.js
-      Restart=always
-
-      [Install]
-      WantedBy=multi-user.target
-
-- name: Jalankan service aplikasi
+- name: Stop dan disable service express-app lama
   systemd:
     name: express-app
-    state: restarted
+    state: stopped
+    enabled: no
+  when: old_unit.stat.exists
+
+- name: Hapus unit file express-app lama
+  file:
+    path: /etc/systemd/system/express-app.service
+    state: absent
+  when: old_unit.stat.exists
+
+- name: Hapus direktori aplikasi lama /opt/express-app
+  file:
+    path: /opt/express-app
+    state: absent
+
+- name: Hapus nginx location lama (nodejs_app.conf)
+  file:
+    path: /etc/nginx/default.d/nodejs_app.conf
+    state: absent
+  notify: Restart Nginx
+
+# --- Payment Gateway app ---
+
+- name: Buat struktur direktori aplikasi payment-gateway
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ pg_run_user }}"
+    group: "{{ pg_run_group }}"
+    mode: '0755'
+  loop:
+    - "{{ pg_app_dir }}"
+    - "{{ pg_app_dir }}/src"
+    - "{{ pg_app_dir }}/src/routes"
+    - "{{ pg_app_dir }}/src/services"
+    - "{{ pg_app_dir }}/config"
+    - "{{ pg_log_dir }}"
+
+- name: Salin source code payment-gateway
+  copy:
+    src: "{{ pg_source_dir }}/{{ item }}"
+    dest: "{{ pg_app_dir }}/{{ item }}"
+    owner: "{{ pg_run_user }}"
+    group: "{{ pg_run_group }}"
+    mode: '0644'
+  loop: "{{ pg_source_files }}"
+  notify: Restart Payment Gateway
+
+- name: Install dependencies npm (production)
+  command: npm install --omit=dev --no-audit --no-fund
+  args:
+    chdir: "{{ pg_app_dir }}"
+  register: pg_npm
+  changed_when: >-
+    ('up to date' not in pg_npm.stdout)
+    and ('up to date' not in (pg_npm.stderr | default('')))
+  notify: Restart Payment Gateway
+
+- name: Pasang systemd unit payment-gateway
+  template:
+    src: payment-gateway.service.j2
+    dest: "/etc/systemd/system/{{ pg_service_name }}.service"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Payment Gateway
+
+- name: Aktifkan dan jalankan service payment-gateway
+  systemd:
+    name: "{{ pg_service_name }}"
+    state: started
     enabled: yes
     daemon_reload: yes
 
-- name: Izinkan Nginx untuk melakukan koneksi ke upstream (SELinux)
+# --- Nginx reverse proxy ---
+
+- name: Izinkan Nginx terhubung ke upstream (SELinux boolean)
   seboolean:
     name: httpd_can_network_connect
     state: yes
     persistent: yes
 
-- name: Pasang konfigurasi Nginx Proxy untuk Node.js
+- name: Pasang konfigurasi Nginx reverse proxy /api/
   template:
-    src: nodejs_location.conf.j2
-    dest: /etc/nginx/default.d/nodejs_app.conf # Perhatikan foldernya
+    src: payment-gateway-nginx.conf.j2
+    dest: /etc/nginx/default.d/payment-gateway.conf
     owner: root
     group: root
     mode: '0644'

@@ -1,0 +1,6 @@
+---
+- name: Restart Payment Gateway
+  systemd:
+    name: "{{ pg_service_name }}"
+    state: restarted
+    daemon_reload: yes
