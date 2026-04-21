@@ -4,3 +4,4 @@
   become: yes          # Menjalankan sebagai sudo/root
   roles:
     - common           # Memanggil folder roles/common
+    - nginx            # Menjalankan role nginx
