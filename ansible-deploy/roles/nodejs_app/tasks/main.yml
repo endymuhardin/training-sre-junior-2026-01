@@ -1,0 +1,49 @@
+---
+- name: Instal Node.js LTS
+  dnf:
+    name: nodejs
+    state: present
+
+- name: Buat direktori aplikasi
+  file:
+    path: /opt/express-app
+    state: directory
+    mode: '0755'
+
+- name: Copy source code aplikasi
+  copy:
+    src: app.js
+    dest: /opt/express-app/app.js
+
+- name: Init npm dan install Express
+  shell: |
+    npm init -y
+    npm install express
+  args:
+    chdir: /opt/express-app
+    creates: /opt/express-app/package.json
+
+- name: Buat systemd service unit
+  copy:
+    dest: /etc/systemd/system/express-app.service
+    content: |
+      [Unit]
+      Description=ExpressJS Hello World App
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=root
+      WorkingDirectory=/opt/express-app
+      ExecStart=/usr/bin/node app.js
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Jalankan service aplikasi
+  systemd:
+    name: express-app
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
