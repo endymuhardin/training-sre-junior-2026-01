@@ -3,6 +3,7 @@
   hosts: all           # Menargetkan semua host di inventory
   become: yes          # Menjalankan sebagai sudo/root
   roles:
+    - shared           # Shared handlers
     - common           # Memanggil folder roles/common
     - nginx            # Menjalankan role nginx
     - postgresql       # Instalasi postgresql

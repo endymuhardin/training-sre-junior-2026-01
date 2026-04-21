@@ -6,6 +6,18 @@
     name: nginx
     state: present
 
+- name: Pastikan direktori default.d tersedia
+  file:
+    path: /etc/nginx/default.d
+    state: directory
+    mode: '0755'
+
+- name: Hapus konfigurasi default bawaan agar tidak bentrok
+  file:
+    path: /etc/nginx/conf.d/default.conf
+    state: absent
+  notify: Restart Nginx
+
 - name: Pasang custom default landing page
   template:
     src: index.html.j2

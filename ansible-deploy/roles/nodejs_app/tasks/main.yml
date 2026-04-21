@@ -47,3 +47,18 @@
     state: restarted
     enabled: yes
     daemon_reload: yes
+
+- name: Izinkan Nginx untuk melakukan koneksi ke upstream (SELinux)
+  seboolean:
+    name: httpd_can_network_connect
+    state: yes
+    persistent: yes
+
+- name: Pasang konfigurasi Nginx Proxy untuk Node.js
+  template:
+    src: nodejs_location.conf.j2
+    dest: /etc/nginx/default.d/nodejs_app.conf # Perhatikan foldernya
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Nginx
