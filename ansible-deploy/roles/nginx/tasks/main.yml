@@ -6,6 +6,14 @@
     name: nginx
     state: present
 
+- name: Pasang custom default landing page
+  template:
+    src: index.html.j2
+    dest: /usr/share/nginx/html/index.html
+    owner: nginx
+    group: nginx
+    mode: '0644'
+
 - name: Pastikan NGINX berjalan dan otomatis aktif saat boot
   systemd:
     name: nginx
