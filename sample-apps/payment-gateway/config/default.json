@@ -1,0 +1,30 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0"
+  },
+  "logging": {
+    "appLogPath": "logs/payment-app.log",
+    "accessLogPath": "logs/access.log",
+    "consoleLevel": "info",
+    "fileLevel": "info"
+  },
+  "simulation": {
+    "successRate": 0.92,
+    "latencyMs": {
+      "baseMin": 40,
+      "baseMax": 180,
+      "timeoutMin": 3000,
+      "timeoutMax": 8000
+    },
+    "errorDistribution": [
+      { "rc": "51", "weight": 35, "message": "Insufficient Funds",              "level": "warn",  "httpStatus": 402 },
+      { "rc": "55", "weight": 20, "message": "Invalid PIN / OTP",                "level": "warn",  "httpStatus": 401 },
+      { "rc": "61", "weight": 15, "message": "Daily Velocity Limit Exceeded",    "level": "warn",  "httpStatus": 429 },
+      { "rc": "68", "weight": 15, "message": "Upstream Bank Timeout",            "level": "error", "httpStatus": 504, "simulateTimeout": true },
+      { "rc": "96", "weight": 10, "message": "System Malfunction ISO-8583",      "level": "error", "httpStatus": 500 },
+      { "rc": "05", "weight": 5,  "message": "Do Not Honor (Suspected Fraud)",   "level": "error", "httpStatus": 403 }
+    ],
+    "methods": ["QRIS", "VA_BCA", "VA_BSI", "VA_MANDIRI", "CREDIT_CARD", "GOPAY", "OVO"]
+  }
+}

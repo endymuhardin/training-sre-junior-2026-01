@@ -1,0 +1,17 @@
+{
+  "name": "payment-gateway-sim",
+  "version": "1.0.0",
+  "description": "Payment gateway simulator for SRE log analysis training.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pino": "^9.5.0",
+    "pino-http": "^10.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
