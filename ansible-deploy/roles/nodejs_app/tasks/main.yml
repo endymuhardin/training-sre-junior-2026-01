@@ -1,6 +1,7 @@
 ---
-# Deployment role: aplikasi ExpressJS Payment Gateway Simulator
-# Source code berada di repo pada {{ pg_source_dir }}
+# Infrastructure untuk aplikasi Payment Gateway Simulator.
+# Copy source code + npm install + restart service dilakukan oleh
+# GitHub Actions workflow (.github/workflows/deploy.yml), bukan di role ini.
 
 - name: Instal Node.js LTS
   dnf:
@@ -38,9 +39,9 @@
     state: absent
   notify: Restart Nginx
 
-# --- Payment Gateway app ---
+# --- Direktori aplikasi (source diisi oleh CI/CD) ---
 
-- name: Buat struktur direktori aplikasi payment-gateway
+- name: Buat direktori aplikasi payment-gateway
   file:
     path: "{{ item }}"
     state: directory
@@ -49,31 +50,12 @@
     mode: '0755'
   loop:
     - "{{ pg_app_dir }}"
-    - "{{ pg_app_dir }}/src"
-    - "{{ pg_app_dir }}/src/routes"
-    - "{{ pg_app_dir }}/src/services"
-    - "{{ pg_app_dir }}/config"
     - "{{ pg_log_dir }}"
 
-- name: Salin source code payment-gateway
-  copy:
-    src: "{{ pg_source_dir }}/{{ item }}"
-    dest: "{{ pg_app_dir }}/{{ item }}"
-    owner: "{{ pg_run_user }}"
-    group: "{{ pg_run_group }}"
-    mode: '0644'
-  loop: "{{ pg_source_files }}"
-  notify: Restart Payment Gateway
-
-- name: Install dependencies npm (production)
-  command: npm install --omit=dev --no-audit --no-fund
-  args:
-    chdir: "{{ pg_app_dir }}"
-  register: pg_npm
-  changed_when: >-
-    ('up to date' not in pg_npm.stdout)
-    and ('up to date' not in (pg_npm.stderr | default('')))
-  notify: Restart Payment Gateway
+- name: Cek apakah source aplikasi sudah pernah dideploy (oleh CI/CD)
+  stat:
+    path: "{{ pg_app_dir }}/src/app.js"
+  register: pg_source_present
 
 - name: Pasang systemd unit payment-gateway
   template:
@@ -84,12 +66,24 @@
     mode: '0644'
   notify: Restart Payment Gateway
 
-- name: Aktifkan dan jalankan service payment-gateway
+- name: Aktifkan service payment-gateway (start dilakukan oleh CI/CD deploy)
   systemd:
     name: "{{ pg_service_name }}"
-    state: started
     enabled: yes
     daemon_reload: yes
+
+# --- Sudoers untuk user CI/CD restart service tanpa password ---
+
+- name: Izinkan user deploy restart service via sudo (NOPASSWD terbatas)
+  copy:
+    dest: /etc/sudoers.d/payment-gateway-deploy
+    content: |
+      # Dikelola oleh ansible — jangan edit manual.
+      {{ pg_deploy_user }} ALL=(root) NOPASSWD: /usr/bin/systemctl restart {{ pg_service_name }}, /usr/bin/systemctl is-active {{ pg_service_name }}, /usr/bin/systemctl status {{ pg_service_name }}
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
 
 # --- Nginx reverse proxy ---
 
@@ -97,12 +91,10 @@
   ansible.builtin.command: getsebool httpd_can_network_connect
   register: sebool_status
   changed_when: false
-  # Kita matikan log agar tidak berisik
-  no_log: true 
+  no_log: true
 
 - name: Aktifkan httpd_can_network_connect secara permanen
   ansible.builtin.command: setsebool -P httpd_can_network_connect 1
-  # Hanya jalankan jika output getsebool mengandung 'off'
   when: "'off' in sebool_status.stdout"
 
 - name: Pasang konfigurasi Nginx reverse proxy /api/

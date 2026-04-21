@@ -1,6 +1,10 @@
 ---
+# Restart hanya boleh dipanggil jika source code aplikasi sudah ada di target.
+# Pada bootstrap pertama, source belum dideploy oleh CI/CD sehingga
+# systemctl restart akan gagal. Handler ini dilewati sampai deploy pertama.
 - name: Restart Payment Gateway
   systemd:
     name: "{{ pg_service_name }}"
     state: restarted
     daemon_reload: yes
+  when: pg_source_present.stat.exists | default(false)

@@ -1,0 +1,133 @@
+name: Deploy Payment Gateway (REFERENSI — tidak aktif otomatis)
+
+# ==========================================================================
+# Workflow ini dibuat untuk kebutuhan materi training, BUKAN untuk dijalankan
+# di repo ini apa adanya. Trigger 'push' sengaja dimatikan supaya fork peserta
+# training atau commit ke main tidak memicu deploy yang pasti gagal karena:
+#   - Secrets (DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY) tidak di-set.
+#   - Server target kemungkinan berada di private network (RFC1918) yang
+#     tidak bisa dicapai dari runner GitHub-hosted tanpa VPN/tunnel.
+#
+# Untuk menjalankan (setelah semua prasyarat terpenuhi), gunakan tombol
+# "Run workflow" di tab Actions (workflow_dispatch).
+#
+# Penjelasan lengkap: lihat .github/workflows/README.md
+# ==========================================================================
+
+on:
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'sample-apps/payment-gateway/**'
+  #     - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-payment-gateway
+  cancel-in-progress: false
+
+env:
+  APP_DIR: /opt/payment-gateway
+  SERVICE_NAME: payment-gateway
+
+jobs:
+  deploy:
+    name: Deploy to ${{ vars.DEPLOY_ENV || 'server' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for build-time validation)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (CI cache)
+        working-directory: sample-apps/payment-gateway
+        run: npm ci --no-audit --no-fund
+
+      - name: Smoke-validate config loader
+        working-directory: sample-apps/payment-gateway
+        run: node -e "require('./src/config.js').load(); console.log('config loader OK')"
+
+      - name: Require deploy secrets
+        run: |
+          missing=0
+          for v in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::secret '$v' is not set"
+              missing=1
+            fi
+          done
+          exit $missing
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Configure SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          port="${DEPLOY_SSH_PORT:-22}"
+          ssh-keyscan -p "$port" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          cat >> ~/.ssh/config <<EOF
+          Host deploy-target
+            HostName $DEPLOY_HOST
+            Port $port
+            User ${{ secrets.DEPLOY_USER }}
+            IdentityFile ~/.ssh/id_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+
+      - name: Rsync source to server
+        run: |
+          set -euo pipefail
+          rsync -az --delete --human-readable \
+            --exclude='node_modules/' \
+            --exclude='logs/' \
+            --exclude='.gitignore' \
+            sample-apps/payment-gateway/ \
+            deploy-target:${APP_DIR}/
+
+      - name: Install production deps and restart service
+        run: |
+          set -euo pipefail
+          ssh deploy-target bash -se <<EOF
+          set -euo pipefail
+          cd ${APP_DIR}
+          npm install --omit=dev --no-audit --no-fund
+          sudo -n systemctl restart ${SERVICE_NAME}
+          sudo -n systemctl is-active --quiet ${SERVICE_NAME}
+          EOF
+
+      - name: Smoke test /api/health
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          HEALTH_URL: ${{ vars.HEALTH_URL }}
+        run: |
+          set -euo pipefail
+          url="${HEALTH_URL:-http://${DEPLOY_HOST}/api/health}"
+          for i in 1 2 3 4 5; do
+            if curl -fsS --max-time 5 "$url" -o /tmp/health.json; then
+              echo "health response:"
+              cat /tmp/health.json
+              echo
+              exit 0
+            fi
+            echo "attempt $i failed, retrying..."
+            sleep 3
+          done
+          echo "::error::health check failed after 5 attempts against $url"
+          exit 1
