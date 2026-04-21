@@ -93,11 +93,17 @@
 
 # --- Nginx reverse proxy ---
 
-- name: Izinkan Nginx terhubung ke upstream (SELinux boolean)
-  seboolean:
-    name: httpd_can_network_connect
-    state: yes
-    persistent: yes
+- name: Cek status SELinux boolean
+  ansible.builtin.command: getsebool httpd_can_network_connect
+  register: sebool_status
+  changed_when: false
+  # Kita matikan log agar tidak berisik
+  no_log: true 
+
+- name: Aktifkan httpd_can_network_connect secara permanen
+  ansible.builtin.command: setsebool -P httpd_can_network_connect 1
+  # Hanya jalankan jika output getsebool mengandung 'off'
+  when: "'off' in sebool_status.stdout"
 
 - name: Pasang konfigurasi Nginx reverse proxy /api/
   template:
