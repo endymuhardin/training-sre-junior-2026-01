@@ -1,0 +1,5 @@
+# Daftar role yang akan diunduh dari Ansible Galaxy atau Git
+roles:
+  # Kita akan menambahkan daftar role di sini nanti secara bertahap
+  # Contoh format:
+  # - name: geerlingguy.postgresql
