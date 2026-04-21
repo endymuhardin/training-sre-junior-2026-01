@@ -5,6 +5,12 @@
   debug:
     msg: "Menjalankan update pada {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
 
+- name: Instal EPEL Repository
+  dnf:
+    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+    state: present
+    disable_gpg_check: yes
+
 - name: Update semua package ke versi terbaru (dnf upgrade)
   dnf:
     name: "*"
