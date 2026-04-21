@@ -1,0 +1,48 @@
+---
+- name: Buat file repo PostgreSQL 16 secara manual
+  copy:
+    dest: /etc/yum.repos.d/pgdg16.repo
+    content: |
+      [pgdg16]
+      name=PostgreSQL 16 untuk RHEL 9 - x86_64
+      baseurl=https://download.postgresql.org/pub/repos/yum/16/redhat/rhel-9-x86_64
+      enabled=1
+      gpgcheck=0
+    mode: '0644'
+
+- name: Bersihkan cache DNF
+  command: dnf clean all
+  changed_when: false
+
+- name: Install PostgreSQL 16 Server (Inti Database)
+  dnf:
+    name: postgresql16-server
+    state: present
+    enablerepo: "pgdg16"
+    disable_gpg_check: yes
+  register: pg_server_install
+
+- name: Mencoba Install PostgreSQL 16 Contrib (Jika kompatibel)
+  dnf:
+    name: postgresql16-contrib
+    state: present
+    enablerepo: "pgdg16"
+    disable_gpg_check: yes
+  ignore_errors: yes # Kita abaikan jika OpenSSL masih bentrok, agar setup tidak berhenti
+
+- name: Cek apakah database sudah diinisialisasi
+  stat:
+    path: /var/lib/pgsql/16/data/PG_VERSION
+  register: pg_data
+
+- name: Inisialisasi Database
+  command: /usr/pgsql-16/bin/postgresql-16-setup initdb
+  when: 
+    - not pg_data.stat.exists
+    - pg_server_install is succeeded
+
+- name: Jalankan dan Enable PostgreSQL 16
+  systemd:
+    name: postgresql-16
+    state: started
+    enabled: yes

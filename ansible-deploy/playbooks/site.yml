@@ -5,3 +5,4 @@
   roles:
     - common           # Memanggil folder roles/common
     - nginx            # Menjalankan role nginx
+    - postgresql       # Instalasi postgresql
