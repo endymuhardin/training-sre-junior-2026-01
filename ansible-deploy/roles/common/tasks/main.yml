@@ -1,0 +1,26 @@
+---
+# tasks file for roles/common (Optimized for RHEL 9)
+
+- name: Pastikan sistem terdaftar dan memiliki akses ke repository
+  debug:
+    msg: "Menjalankan update pada {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+
+- name: Update semua package ke versi terbaru (dnf upgrade)
+  dnf:
+    name: "*"
+    state: latest
+    update_cache: yes
+
+- name: Hapus package yang tidak diperlukan (autoremove)
+  dnf:
+    autoremove: yes
+
+- name: Instalasi tools dasar yang sering dibutuhkan IT Consultant
+  dnf:
+    name:
+      - curl
+      - wget
+      - git
+      - htop
+      - vim
+    state: present

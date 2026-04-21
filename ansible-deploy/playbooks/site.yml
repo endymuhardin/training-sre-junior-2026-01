@@ -1,0 +1,6 @@
+---
+- name: Update dan Upgrade Server RHEL
+  hosts: all           # Menargetkan semua host di inventory
+  become: yes          # Menjalankan sebagai sudo/root
+  roles:
+    - common           # Memanggil folder roles/common
