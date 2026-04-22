@@ -1,0 +1,646 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: loadtest/k6-soak.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 30 max VUs, 5m30s max duration (incl. graceful stop):
+              * soak: 30 looping VUs for 5m0s (gracefulStop: 30s)
+
+time="2026-04-22T12:01:10+07:00" level=info msg="memory retention enabled: {\"memory\":{\"retainRecords\":true,\"maxRecords\":500000,\"payloadKb\":8}}" source=console
+
+soak   [   0% ] 30 VUs  0m00.8s/5m0s
+
+soak   [   1% ] 30 VUs  0m01.8s/5m0s
+
+soak   [   1% ] 30 VUs  0m02.8s/5m0s
+
+soak   [   1% ] 30 VUs  0m03.8s/5m0s
+
+soak   [   2% ] 30 VUs  0m04.8s/5m0s
+
+soak   [   2% ] 30 VUs  0m05.8s/5m0s
+
+soak   [   2% ] 30 VUs  0m06.8s/5m0s
+
+soak   [   3% ] 30 VUs  0m07.8s/5m0s
+
+soak   [   3% ] 30 VUs  0m08.8s/5m0s
+
+soak   [   3% ] 30 VUs  0m09.8s/5m0s
+
+soak   [   4% ] 30 VUs  0m10.8s/5m0s
+
+soak   [   4% ] 30 VUs  0m11.8s/5m0s
+
+soak   [   4% ] 30 VUs  0m12.8s/5m0s
+
+soak   [   5% ] 30 VUs  0m13.8s/5m0s
+
+soak   [   5% ] 30 VUs  0m14.8s/5m0s
+
+soak   [   5% ] 30 VUs  0m15.8s/5m0s
+
+soak   [   6% ] 30 VUs  0m16.8s/5m0s
+
+soak   [   6% ] 30 VUs  0m17.8s/5m0s
+
+soak   [   6% ] 30 VUs  0m18.8s/5m0s
+
+soak   [   7% ] 30 VUs  0m19.8s/5m0s
+
+soak   [   7% ] 30 VUs  0m20.8s/5m0s
+
+soak   [   7% ] 30 VUs  0m21.8s/5m0s
+
+soak   [   8% ] 30 VUs  0m22.8s/5m0s
+
+soak   [   8% ] 30 VUs  0m23.8s/5m0s
+
+soak   [   8% ] 30 VUs  0m24.8s/5m0s
+
+soak   [   9% ] 30 VUs  0m25.8s/5m0s
+
+soak   [   9% ] 30 VUs  0m26.8s/5m0s
+
+soak   [   9% ] 30 VUs  0m27.8s/5m0s
+
+soak   [  10% ] 30 VUs  0m28.8s/5m0s
+
+soak   [  10% ] 30 VUs  0m29.8s/5m0s
+
+soak   [  10% ] 30 VUs  0m30.8s/5m0s
+
+soak   [  11% ] 30 VUs  0m31.8s/5m0s
+
+soak   [  11% ] 30 VUs  0m32.8s/5m0s
+
+soak   [  11% ] 30 VUs  0m33.8s/5m0s
+
+soak   [  12% ] 30 VUs  0m34.8s/5m0s
+
+soak   [  12% ] 30 VUs  0m35.8s/5m0s
+
+soak   [  12% ] 30 VUs  0m36.8s/5m0s
+
+soak   [  13% ] 30 VUs  0m37.8s/5m0s
+
+soak   [  13% ] 30 VUs  0m38.8s/5m0s
+
+soak   [  13% ] 30 VUs  0m39.8s/5m0s
+
+soak   [  14% ] 30 VUs  0m40.8s/5m0s
+
+soak   [  14% ] 30 VUs  0m41.8s/5m0s
+
+soak   [  14% ] 30 VUs  0m42.8s/5m0s
+
+soak   [  15% ] 30 VUs  0m43.8s/5m0s
+
+soak   [  15% ] 30 VUs  0m44.8s/5m0s
+
+soak   [  15% ] 30 VUs  0m45.8s/5m0s
+
+soak   [  16% ] 30 VUs  0m46.8s/5m0s
+
+soak   [  16% ] 30 VUs  0m47.8s/5m0s
+
+soak   [  16% ] 30 VUs  0m48.8s/5m0s
+
+soak   [  17% ] 30 VUs  0m49.8s/5m0s
+
+soak   [  17% ] 30 VUs  0m50.8s/5m0s
+
+soak   [  17% ] 30 VUs  0m51.8s/5m0s
+
+soak   [  18% ] 30 VUs  0m52.8s/5m0s
+
+soak   [  18% ] 30 VUs  0m53.8s/5m0s
+
+soak   [  18% ] 30 VUs  0m54.8s/5m0s
+
+soak   [  19% ] 30 VUs  0m55.8s/5m0s
+
+soak   [  19% ] 30 VUs  0m56.8s/5m0s
+
+soak   [  19% ] 30 VUs  0m57.8s/5m0s
+
+soak   [  20% ] 30 VUs  0m58.8s/5m0s
+
+soak   [  20% ] 30 VUs  0m59.8s/5m0s
+
+soak   [  20% ] 30 VUs  1m00.8s/5m0s
+
+soak   [  21% ] 30 VUs  1m01.8s/5m0s
+
+soak   [  21% ] 30 VUs  1m02.8s/5m0s
+
+soak   [  21% ] 30 VUs  1m03.8s/5m0s
+
+soak   [  22% ] 30 VUs  1m04.8s/5m0s
+
+soak   [  22% ] 30 VUs  1m05.8s/5m0s
+
+soak   [  22% ] 30 VUs  1m06.8s/5m0s
+
+soak   [  23% ] 30 VUs  1m07.8s/5m0s
+
+soak   [  23% ] 30 VUs  1m08.8s/5m0s
+
+soak   [  23% ] 30 VUs  1m09.8s/5m0s
+
+soak   [  24% ] 30 VUs  1m10.8s/5m0s
+
+soak   [  24% ] 30 VUs  1m11.8s/5m0s
+
+soak   [  24% ] 30 VUs  1m12.8s/5m0s
+
+soak   [  25% ] 30 VUs  1m13.8s/5m0s
+
+soak   [  25% ] 30 VUs  1m14.8s/5m0s
+
+soak   [  25% ] 30 VUs  1m15.8s/5m0s
+
+soak   [  26% ] 30 VUs  1m16.8s/5m0s
+
+soak   [  26% ] 30 VUs  1m17.8s/5m0s
+
+soak   [  26% ] 30 VUs  1m18.8s/5m0s
+
+soak   [  27% ] 30 VUs  1m19.8s/5m0s
+
+soak   [  27% ] 30 VUs  1m20.8s/5m0s
+
+soak   [  27% ] 30 VUs  1m21.8s/5m0s
+
+soak   [  28% ] 30 VUs  1m22.8s/5m0s
+
+soak   [  28% ] 30 VUs  1m23.8s/5m0s
+
+soak   [  28% ] 30 VUs  1m24.8s/5m0s
+
+soak   [  29% ] 30 VUs  1m25.8s/5m0s
+
+soak   [  29% ] 30 VUs  1m26.8s/5m0s
+
+soak   [  29% ] 30 VUs  1m27.8s/5m0s
+
+soak   [  30% ] 30 VUs  1m28.8s/5m0s
+
+soak   [  30% ] 30 VUs  1m29.8s/5m0s
+
+soak   [  30% ] 30 VUs  1m30.8s/5m0s
+
+soak   [  31% ] 30 VUs  1m31.8s/5m0s
+
+soak   [  31% ] 30 VUs  1m32.8s/5m0s
+
+soak   [  31% ] 30 VUs  1m33.8s/5m0s
+
+soak   [  32% ] 30 VUs  1m34.8s/5m0s
+
+soak   [  32% ] 30 VUs  1m35.8s/5m0s
+
+soak   [  32% ] 30 VUs  1m36.8s/5m0s
+
+soak   [  33% ] 30 VUs  1m37.8s/5m0s
+
+soak   [  33% ] 30 VUs  1m38.8s/5m0s
+
+soak   [  33% ] 30 VUs  1m39.8s/5m0s
+
+soak   [  34% ] 30 VUs  1m40.8s/5m0s
+
+soak   [  34% ] 30 VUs  1m41.8s/5m0s
+
+soak   [  34% ] 30 VUs  1m42.8s/5m0s
+
+soak   [  35% ] 30 VUs  1m43.8s/5m0s
+
+soak   [  35% ] 30 VUs  1m44.8s/5m0s
+
+soak   [  35% ] 30 VUs  1m45.8s/5m0s
+
+soak   [  36% ] 30 VUs  1m46.8s/5m0s
+
+soak   [  36% ] 30 VUs  1m47.8s/5m0s
+
+soak   [  36% ] 30 VUs  1m48.8s/5m0s
+
+soak   [  37% ] 30 VUs  1m49.8s/5m0s
+
+soak   [  37% ] 30 VUs  1m50.8s/5m0s
+
+soak   [  37% ] 30 VUs  1m51.8s/5m0s
+
+soak   [  38% ] 30 VUs  1m52.8s/5m0s
+
+soak   [  38% ] 30 VUs  1m53.8s/5m0s
+
+soak   [  38% ] 30 VUs  1m54.8s/5m0s
+
+soak   [  39% ] 30 VUs  1m55.8s/5m0s
+
+soak   [  39% ] 30 VUs  1m56.8s/5m0s
+
+soak   [  39% ] 30 VUs  1m57.8s/5m0s
+
+soak   [  40% ] 30 VUs  1m58.8s/5m0s
+
+soak   [  40% ] 30 VUs  1m59.8s/5m0s
+
+soak   [  40% ] 30 VUs  2m00.8s/5m0s
+
+soak   [  41% ] 30 VUs  2m01.8s/5m0s
+
+soak   [  41% ] 30 VUs  2m02.8s/5m0s
+
+soak   [  41% ] 30 VUs  2m03.8s/5m0s
+
+soak   [  42% ] 30 VUs  2m04.8s/5m0s
+
+soak   [  42% ] 30 VUs  2m05.8s/5m0s
+
+soak   [  42% ] 30 VUs  2m06.8s/5m0s
+
+soak   [  43% ] 30 VUs  2m07.8s/5m0s
+
+soak   [  43% ] 30 VUs  2m08.8s/5m0s
+
+soak   [  43% ] 30 VUs  2m09.8s/5m0s
+
+soak   [  44% ] 30 VUs  2m10.8s/5m0s
+
+soak   [  44% ] 30 VUs  2m11.8s/5m0s
+
+soak   [  44% ] 30 VUs  2m12.8s/5m0s
+
+soak   [  45% ] 30 VUs  2m13.8s/5m0s
+
+soak   [  45% ] 30 VUs  2m14.8s/5m0s
+
+soak   [  45% ] 30 VUs  2m15.8s/5m0s
+
+soak   [  46% ] 30 VUs  2m16.8s/5m0s
+
+soak   [  46% ] 30 VUs  2m17.8s/5m0s
+
+soak   [  46% ] 30 VUs  2m18.8s/5m0s
+
+soak   [  47% ] 30 VUs  2m19.8s/5m0s
+
+soak   [  47% ] 30 VUs  2m20.8s/5m0s
+
+soak   [  47% ] 30 VUs  2m21.8s/5m0s
+
+soak   [  48% ] 30 VUs  2m22.8s/5m0s
+
+soak   [  48% ] 30 VUs  2m23.8s/5m0s
+
+soak   [  48% ] 30 VUs  2m24.8s/5m0s
+
+soak   [  49% ] 30 VUs  2m25.8s/5m0s
+
+soak   [  49% ] 30 VUs  2m26.8s/5m0s
+
+soak   [  49% ] 30 VUs  2m27.8s/5m0s
+
+soak   [  50% ] 30 VUs  2m28.8s/5m0s
+
+soak   [  50% ] 30 VUs  2m29.8s/5m0s
+
+soak   [  50% ] 30 VUs  2m30.8s/5m0s
+
+soak   [  51% ] 30 VUs  2m31.8s/5m0s
+
+soak   [  51% ] 30 VUs  2m32.8s/5m0s
+
+soak   [  51% ] 30 VUs  2m33.8s/5m0s
+
+soak   [  52% ] 30 VUs  2m34.8s/5m0s
+
+soak   [  52% ] 30 VUs  2m35.8s/5m0s
+
+soak   [  52% ] 30 VUs  2m36.8s/5m0s
+
+soak   [  53% ] 30 VUs  2m37.8s/5m0s
+
+soak   [  53% ] 30 VUs  2m38.8s/5m0s
+
+soak   [  53% ] 30 VUs  2m39.8s/5m0s
+
+soak   [  54% ] 30 VUs  2m40.8s/5m0s
+
+soak   [  54% ] 30 VUs  2m41.8s/5m0s
+
+soak   [  54% ] 30 VUs  2m42.8s/5m0s
+
+soak   [  55% ] 30 VUs  2m43.8s/5m0s
+
+soak   [  55% ] 30 VUs  2m44.8s/5m0s
+
+soak   [  55% ] 30 VUs  2m45.8s/5m0s
+
+soak   [  56% ] 30 VUs  2m46.8s/5m0s
+
+soak   [  56% ] 30 VUs  2m47.8s/5m0s
+
+soak   [  56% ] 30 VUs  2m48.8s/5m0s
+
+soak   [  57% ] 30 VUs  2m49.8s/5m0s
+
+soak   [  57% ] 30 VUs  2m50.8s/5m0s
+
+soak   [  57% ] 30 VUs  2m51.8s/5m0s
+
+soak   [  58% ] 30 VUs  2m52.8s/5m0s
+
+soak   [  58% ] 30 VUs  2m53.8s/5m0s
+
+soak   [  58% ] 30 VUs  2m54.8s/5m0s
+
+soak   [  59% ] 30 VUs  2m55.8s/5m0s
+
+soak   [  59% ] 30 VUs  2m56.8s/5m0s
+
+soak   [  59% ] 30 VUs  2m57.8s/5m0s
+
+soak   [  60% ] 30 VUs  2m58.8s/5m0s
+
+soak   [  60% ] 30 VUs  2m59.8s/5m0s
+
+soak   [  60% ] 30 VUs  3m00.8s/5m0s
+
+soak   [  61% ] 30 VUs  3m01.8s/5m0s
+
+soak   [  61% ] 30 VUs  3m02.8s/5m0s
+
+soak   [  61% ] 30 VUs  3m03.8s/5m0s
+
+soak   [  62% ] 30 VUs  3m04.8s/5m0s
+
+soak   [  62% ] 30 VUs  3m05.8s/5m0s
+
+soak   [  62% ] 30 VUs  3m06.8s/5m0s
+
+soak   [  63% ] 30 VUs  3m07.8s/5m0s
+
+soak   [  63% ] 30 VUs  3m08.8s/5m0s
+
+soak   [  63% ] 30 VUs  3m09.8s/5m0s
+
+soak   [  64% ] 30 VUs  3m10.8s/5m0s
+
+soak   [  64% ] 30 VUs  3m11.8s/5m0s
+
+soak   [  64% ] 30 VUs  3m12.8s/5m0s
+
+soak   [  65% ] 30 VUs  3m13.8s/5m0s
+
+soak   [  65% ] 30 VUs  3m14.8s/5m0s
+
+soak   [  65% ] 30 VUs  3m15.8s/5m0s
+
+soak   [  66% ] 30 VUs  3m16.8s/5m0s
+
+soak   [  66% ] 30 VUs  3m17.8s/5m0s
+
+soak   [  66% ] 30 VUs  3m18.8s/5m0s
+
+soak   [  67% ] 30 VUs  3m19.8s/5m0s
+
+soak   [  67% ] 30 VUs  3m20.8s/5m0s
+
+soak   [  67% ] 30 VUs  3m21.8s/5m0s
+
+soak   [  68% ] 30 VUs  3m22.8s/5m0s
+
+soak   [  68% ] 30 VUs  3m23.8s/5m0s
+
+soak   [  68% ] 30 VUs  3m24.8s/5m0s
+
+soak   [  69% ] 30 VUs  3m25.8s/5m0s
+
+soak   [  69% ] 30 VUs  3m26.8s/5m0s
+
+soak   [  69% ] 30 VUs  3m27.8s/5m0s
+
+soak   [  70% ] 30 VUs  3m28.8s/5m0s
+
+soak   [  70% ] 30 VUs  3m29.8s/5m0s
+
+soak   [  70% ] 30 VUs  3m30.8s/5m0s
+
+soak   [  71% ] 30 VUs  3m31.8s/5m0s
+
+soak   [  71% ] 30 VUs  3m32.8s/5m0s
+
+soak   [  71% ] 30 VUs  3m33.8s/5m0s
+
+soak   [  72% ] 30 VUs  3m34.8s/5m0s
+
+soak   [  72% ] 30 VUs  3m35.8s/5m0s
+
+soak   [  72% ] 30 VUs  3m36.8s/5m0s
+
+soak   [  73% ] 30 VUs  3m37.8s/5m0s
+
+soak   [  73% ] 30 VUs  3m38.8s/5m0s
+
+soak   [  73% ] 30 VUs  3m39.8s/5m0s
+
+soak   [  74% ] 30 VUs  3m40.8s/5m0s
+
+soak   [  74% ] 30 VUs  3m41.8s/5m0s
+
+soak   [  74% ] 30 VUs  3m42.8s/5m0s
+
+soak   [  75% ] 30 VUs  3m43.8s/5m0s
+
+soak   [  75% ] 30 VUs  3m44.8s/5m0s
+
+soak   [  75% ] 30 VUs  3m45.8s/5m0s
+
+soak   [  76% ] 30 VUs  3m46.8s/5m0s
+
+soak   [  76% ] 30 VUs  3m47.8s/5m0s
+
+soak   [  76% ] 30 VUs  3m48.8s/5m0s
+
+soak   [  77% ] 30 VUs  3m49.8s/5m0s
+
+soak   [  77% ] 30 VUs  3m50.8s/5m0s
+
+soak   [  77% ] 30 VUs  3m51.8s/5m0s
+
+soak   [  78% ] 30 VUs  3m52.8s/5m0s
+
+soak   [  78% ] 30 VUs  3m53.8s/5m0s
+
+soak   [  78% ] 30 VUs  3m54.8s/5m0s
+
+soak   [  79% ] 30 VUs  3m55.8s/5m0s
+
+soak   [  79% ] 30 VUs  3m56.8s/5m0s
+
+soak   [  79% ] 30 VUs  3m57.8s/5m0s
+
+soak   [  80% ] 30 VUs  3m58.8s/5m0s
+
+soak   [  80% ] 30 VUs  3m59.8s/5m0s
+
+soak   [  80% ] 30 VUs  4m00.8s/5m0s
+
+soak   [  81% ] 30 VUs  4m01.8s/5m0s
+
+soak   [  81% ] 30 VUs  4m02.8s/5m0s
+
+soak   [  81% ] 30 VUs  4m03.8s/5m0s
+
+soak   [  82% ] 30 VUs  4m04.8s/5m0s
+
+soak   [  82% ] 30 VUs  4m05.8s/5m0s
+
+soak   [  82% ] 30 VUs  4m06.8s/5m0s
+
+soak   [  83% ] 30 VUs  4m07.8s/5m0s
+
+soak   [  83% ] 30 VUs  4m08.8s/5m0s
+
+soak   [  83% ] 30 VUs  4m09.8s/5m0s
+
+soak   [  84% ] 30 VUs  4m10.8s/5m0s
+
+soak   [  84% ] 30 VUs  4m11.8s/5m0s
+
+soak   [  84% ] 30 VUs  4m12.8s/5m0s
+
+soak   [  85% ] 30 VUs  4m13.8s/5m0s
+
+soak   [  85% ] 30 VUs  4m14.8s/5m0s
+
+soak   [  85% ] 30 VUs  4m15.8s/5m0s
+
+soak   [  86% ] 30 VUs  4m16.8s/5m0s
+
+soak   [  86% ] 30 VUs  4m17.8s/5m0s
+
+soak   [  86% ] 30 VUs  4m18.8s/5m0s
+
+soak   [  87% ] 30 VUs  4m19.8s/5m0s
+
+soak   [  87% ] 30 VUs  4m20.8s/5m0s
+
+soak   [  87% ] 30 VUs  4m21.8s/5m0s
+
+soak   [  88% ] 30 VUs  4m22.8s/5m0s
+
+soak   [  88% ] 30 VUs  4m23.8s/5m0s
+
+soak   [  88% ] 30 VUs  4m24.8s/5m0s
+
+soak   [  89% ] 30 VUs  4m25.8s/5m0s
+
+soak   [  89% ] 30 VUs  4m26.8s/5m0s
+
+soak   [  89% ] 30 VUs  4m27.8s/5m0s
+
+soak   [  90% ] 30 VUs  4m28.8s/5m0s
+
+soak   [  90% ] 30 VUs  4m29.8s/5m0s
+
+soak   [  90% ] 30 VUs  4m30.8s/5m0s
+
+soak   [  91% ] 30 VUs  4m31.8s/5m0s
+
+soak   [  91% ] 30 VUs  4m32.8s/5m0s
+
+soak   [  91% ] 30 VUs  4m33.8s/5m0s
+
+soak   [  92% ] 30 VUs  4m34.8s/5m0s
+
+soak   [  92% ] 30 VUs  4m35.8s/5m0s
+
+soak   [  92% ] 30 VUs  4m36.8s/5m0s
+
+soak   [  93% ] 30 VUs  4m37.8s/5m0s
+
+soak   [  93% ] 30 VUs  4m38.8s/5m0s
+
+soak   [  93% ] 30 VUs  4m39.8s/5m0s
+
+soak   [  94% ] 30 VUs  4m40.8s/5m0s
+
+soak   [  94% ] 30 VUs  4m41.8s/5m0s
+
+soak   [  94% ] 30 VUs  4m42.8s/5m0s
+
+soak   [  95% ] 30 VUs  4m43.8s/5m0s
+
+soak   [  95% ] 30 VUs  4m44.8s/5m0s
+
+soak   [  95% ] 30 VUs  4m45.8s/5m0s
+
+soak   [  96% ] 30 VUs  4m46.8s/5m0s
+
+soak   [  96% ] 30 VUs  4m47.8s/5m0s
+
+soak   [  96% ] 30 VUs  4m48.8s/5m0s
+
+soak   [  97% ] 30 VUs  4m49.8s/5m0s
+
+soak   [  97% ] 30 VUs  4m50.8s/5m0s
+
+soak   [  97% ] 30 VUs  4m51.8s/5m0s
+
+soak   [  98% ] 30 VUs  4m52.8s/5m0s
+
+soak   [  98% ] 30 VUs  4m53.8s/5m0s
+
+soak   [  98% ] 30 VUs  4m54.8s/5m0s
+
+soak   [  99% ] 30 VUs  4m55.8s/5m0s
+
+soak   [  99% ] 30 VUs  4m56.8s/5m0s
+
+soak   [  99% ] 30 VUs  4m57.8s/5m0s
+
+soak   [ 100% ] 30 VUs  4m58.8s/5m0s
+
+soak   [ 100% ] 30 VUs  4m59.8s/5m0s
+
+
+
+
+
+time="2026-04-22T12:06:16+07:00" level=info msg="memory retention disabled: {\"memory\":{\"retainRecords\":false,\"maxRecords\":500000,\"payloadKb\":8}}" source=console
+time="2026-04-22T12:06:16+07:00" level=info msg="retained records cleared: {\"dropped\":23013}" source=console
+
+
+  █ TOTAL RESULTS 
+
+    HTTP
+    http_req_duration..............: avg=191.39ms min=47.06ms  med=128.65ms max=8s      p(90)=186.14ms p(95)=193.93ms
+      { expected_response:true }...: avg=128.11ms min=47.06ms  med=127.98ms max=310.7ms p(90)=184.82ms p(95)=191.8ms 
+    http_req_failed................: 7.89%  1818 out of 23016
+    http_reqs......................: 23016  75.255582/s
+
+    EXECUTION
+    iteration_duration.............: avg=392.24ms min=247.34ms med=329.45ms max=8.2s    p(90)=386.95ms p(95)=394.81ms
+    iterations.....................: 23013  75.245772/s
+    vus............................: 3      min=3             max=30
+    vus_max........................: 30     min=30            max=30
+
+    NETWORK
+    data_received..................: 7.9 MB 26 kB/s
+    data_sent......................: 3.8 MB 12 kB/s
+
+
+
+

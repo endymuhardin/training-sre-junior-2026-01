@@ -1,0 +1,33 @@
+
+    http_req_failed
+    ✓ 'rate<0.15' rate=7.77%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 18844   78.378758/s
+    checks_succeeded...: 100.00% 18844 out of 18844
+    checks_failed......: 0.00%   0 out of 18844
+
+    ✓ response received
+    ✓ known status
+
+    HTTP
+    http_req_duration..............: avg=195.53ms min=47.66ms med=131.89ms max=8.01s    p(90)=188.46ms p(95)=200.13ms
+      { expected_response:true }...: avg=130.4ms  min=47.66ms med=131.1ms  max=250.41ms p(90)=186.62ms p(95)=195.37ms
+    http_req_failed................: 7.77%  733 out of 9422
+    http_reqs......................: 9422   39.189379/s
+
+    EXECUTION
+    iteration_duration.............: avg=447.92ms min=57.24ms med=387.91ms max=8.34s    p(90)=590ms    p(95)=630.69ms
+    iterations.....................: 9422   39.189379/s
+    vus............................: 2      min=0           max=20
+    vus_max........................: 20     min=20          max=20
+
+    NETWORK
+    data_received..................: 3.2 MB 13 kB/s
+    data_sent......................: 1.8 MB 7.4 kB/s
+
+
+
+

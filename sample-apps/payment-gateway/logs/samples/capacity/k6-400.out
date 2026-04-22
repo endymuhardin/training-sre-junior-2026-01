@@ -1,0 +1,166 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: loadtest/k6-capacity.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 6000 max VUs, 1m15s max duration (incl. graceful stop):
+              * capacity: 400.00 iterations/s for 1m0s (maxVUs: 800-6000, gracefulStop: 15s)
+
+time="2026-04-22T13:16:13+07:00" level=info msg="capacity run: target=400 rps, duration=60s" source=console
+
+capacity   [   1% ] 0055/0800 VUs  0m00.7s/1m0s  400.00 iters/s
+
+capacity   [   3% ] 0066/0800 VUs  0m01.7s/1m0s  400.00 iters/s
+
+capacity   [   5% ] 0060/0800 VUs  0m02.7s/1m0s  400.00 iters/s
+
+capacity   [   6% ] 0070/0800 VUs  0m03.7s/1m0s  400.00 iters/s
+
+capacity   [   8% ] 0072/0800 VUs  0m04.7s/1m0s  400.00 iters/s
+
+capacity   [  10% ] 0075/0800 VUs  0m05.7s/1m0s  400.00 iters/s
+
+capacity   [  11% ] 0077/0800 VUs  0m06.7s/1m0s  400.00 iters/s
+
+capacity   [  13% ] 0083/0800 VUs  0m07.7s/1m0s  400.00 iters/s
+
+capacity   [  15% ] 0079/0800 VUs  0m08.7s/1m0s  400.00 iters/s
+
+capacity   [  16% ] 0080/0800 VUs  0m09.7s/1m0s  400.00 iters/s
+
+capacity   [  18% ] 0078/0800 VUs  0m10.7s/1m0s  400.00 iters/s
+
+capacity   [  20% ] 0074/0800 VUs  0m11.7s/1m0s  400.00 iters/s
+
+capacity   [  21% ] 0084/0800 VUs  0m12.7s/1m0s  400.00 iters/s
+
+capacity   [  23% ] 0076/0800 VUs  0m13.7s/1m0s  400.00 iters/s
+
+capacity   [  25% ] 0082/0800 VUs  0m14.7s/1m0s  400.00 iters/s
+
+capacity   [  26% ] 0076/0800 VUs  0m15.8s/1m0s  400.00 iters/s
+
+capacity   [  28% ] 0074/0800 VUs  0m16.7s/1m0s  400.00 iters/s
+
+capacity   [  30% ] 0076/0800 VUs  0m17.7s/1m0s  400.00 iters/s
+
+capacity   [  31% ] 0074/0800 VUs  0m18.7s/1m0s  400.00 iters/s
+
+capacity   [  33% ] 0079/0800 VUs  0m19.7s/1m0s  400.00 iters/s
+
+capacity   [  35% ] 0073/0800 VUs  0m20.7s/1m0s  400.00 iters/s
+
+capacity   [  36% ] 0081/0800 VUs  0m21.7s/1m0s  400.00 iters/s
+
+capacity   [  38% ] 0079/0800 VUs  0m22.7s/1m0s  400.00 iters/s
+
+capacity   [  40% ] 0077/0800 VUs  0m23.7s/1m0s  400.00 iters/s
+
+capacity   [  41% ] 0072/0800 VUs  0m24.7s/1m0s  400.00 iters/s
+
+capacity   [  43% ] 0079/0800 VUs  0m25.7s/1m0s  400.00 iters/s
+
+capacity   [  45% ] 0078/0800 VUs  0m26.7s/1m0s  400.00 iters/s
+
+capacity   [  46% ] 0077/0800 VUs  0m27.7s/1m0s  400.00 iters/s
+
+capacity   [  48% ] 0071/0800 VUs  0m28.7s/1m0s  400.00 iters/s
+
+capacity   [  50% ] 0073/0800 VUs  0m29.7s/1m0s  400.00 iters/s
+
+capacity   [  51% ] 0070/0800 VUs  0m30.7s/1m0s  400.00 iters/s
+
+capacity   [  53% ] 0071/0800 VUs  0m31.7s/1m0s  400.00 iters/s
+
+capacity   [  55% ] 0073/0800 VUs  0m32.7s/1m0s  400.00 iters/s
+
+capacity   [  56% ] 0072/0800 VUs  0m33.7s/1m0s  400.00 iters/s
+
+capacity   [  58% ] 0086/0800 VUs  0m34.7s/1m0s  400.00 iters/s
+
+capacity   [  60% ] 0083/0800 VUs  0m35.7s/1m0s  400.00 iters/s
+
+capacity   [  61% ] 0080/0800 VUs  0m36.7s/1m0s  400.00 iters/s
+
+capacity   [  63% ] 0077/0800 VUs  0m37.7s/1m0s  400.00 iters/s
+
+capacity   [  65% ] 0069/0800 VUs  0m38.7s/1m0s  400.00 iters/s
+
+capacity   [  66% ] 0068/0800 VUs  0m39.7s/1m0s  400.00 iters/s
+
+capacity   [  68% ] 0063/0800 VUs  0m40.7s/1m0s  400.00 iters/s
+
+capacity   [  70% ] 0069/0800 VUs  0m41.7s/1m0s  400.00 iters/s
+
+capacity   [  71% ] 0068/0800 VUs  0m42.7s/1m0s  400.00 iters/s
+
+capacity   [  73% ] 0067/0800 VUs  0m43.7s/1m0s  400.00 iters/s
+
+capacity   [  75% ] 0077/0800 VUs  0m44.7s/1m0s  400.00 iters/s
+
+capacity   [  76% ] 0071/0800 VUs  0m45.7s/1m0s  400.00 iters/s
+
+capacity   [  78% ] 0079/0800 VUs  0m46.7s/1m0s  400.00 iters/s
+
+capacity   [  80% ] 0067/0800 VUs  0m47.7s/1m0s  400.00 iters/s
+
+capacity   [  81% ] 0079/0800 VUs  0m48.7s/1m0s  400.00 iters/s
+
+capacity   [  83% ] 0078/0800 VUs  0m49.7s/1m0s  400.00 iters/s
+
+capacity   [  85% ] 0081/0800 VUs  0m50.7s/1m0s  400.00 iters/s
+
+capacity   [  86% ] 0073/0800 VUs  0m51.7s/1m0s  400.00 iters/s
+
+capacity   [  88% ] 0077/0800 VUs  0m52.7s/1m0s  400.00 iters/s
+
+capacity   [  90% ] 0076/0800 VUs  0m53.7s/1m0s  400.00 iters/s
+
+capacity   [  91% ] 0079/0800 VUs  0m54.7s/1m0s  400.00 iters/s
+
+capacity   [  93% ] 0077/0800 VUs  0m55.7s/1m0s  400.00 iters/s
+
+capacity   [  95% ] 0074/0800 VUs  0m56.7s/1m0s  400.00 iters/s
+
+capacity   [  96% ] 0080/0800 VUs  0m57.7s/1m0s  400.00 iters/s
+
+capacity   [  98% ] 0073/0800 VUs  0m58.7s/1m0s  400.00 iters/s
+
+capacity   [ 100% ] 0077/0800 VUs  0m59.7s/1m0s  400.00 iters/s
+
+
+
+
+
+
+
+
+
+  █ TOTAL RESULTS 
+
+    HTTP
+    http_req_duration..............: avg=188.72ms min=47.73ms med=124.59ms max=7.99s    p(50)=124.59ms p(90)=182.08ms p(95)=189.13ms p(99)=3.98s   
+      { expected_response:true }...: avg=123.86ms min=47.73ms med=123.84ms max=248.41ms p(50)=123.84ms p(90)=180.43ms p(95)=187.54ms p(99)=194.39ms
+    http_req_failed................: 7.99%  1918 out of 24003
+    http_reqs......................: 24003  357.189903/s
+
+    EXECUTION
+    iteration_duration.............: avg=189.46ms min=47.88ms med=125.28ms max=7.99s    p(50)=125.28ms p(90)=182.79ms p(95)=189.8ms  p(99)=3.98s   
+    iterations.....................: 24000  357.145259/s
+    vus............................: 1      min=1             max=86 
+    vus_max........................: 800    min=800           max=800
+
+    NETWORK
+    data_received..................: 8.2 MB 123 kB/s
+    data_sent......................: 4.0 MB 59 kB/s
+
+
+
+

@@ -1,2 +1,7 @@
-logs/
+# Runtime log output di logs/ — jangan di-commit.
+# Tapi logs/samples/ berisi artefak load test yang sengaja dikurasi
+# sebagai bahan latihan peserta training — tetap di-commit.
+logs/*
+!logs/samples/
+
 node_modules/

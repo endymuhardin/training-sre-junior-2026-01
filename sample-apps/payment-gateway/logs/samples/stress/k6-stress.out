@@ -1,0 +1,690 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: loadtest/k6-stress.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 300 max VUs, 5m10s max duration (incl. graceful stop):
+              * stress: Up to 300 looping VUs for 5m0s over 5 stages (gracefulRampDown: 10s, gracefulStop: 30s)
+
+
+stress   [   0% ] 001/300 VUs  0m00.9s/5m00.0s
+
+stress   [   1% ] 003/300 VUs  0m01.9s/5m00.0s
+
+stress   [   1% ] 004/300 VUs  0m02.9s/5m00.0s
+
+stress   [   1% ] 006/300 VUs  0m03.9s/5m00.0s
+
+stress   [   2% ] 008/300 VUs  0m04.9s/5m00.0s
+
+stress   [   2% ] 009/300 VUs  0m05.9s/5m00.0s
+
+stress   [   2% ] 011/300 VUs  0m06.9s/5m00.0s
+
+stress   [   3% ] 013/300 VUs  0m07.9s/5m00.0s
+
+stress   [   3% ] 014/300 VUs  0m08.9s/5m00.0s
+
+stress   [   3% ] 016/300 VUs  0m09.9s/5m00.0s
+
+stress   [   4% ] 018/300 VUs  0m10.9s/5m00.0s
+
+stress   [   4% ] 019/300 VUs  0m11.9s/5m00.0s
+
+stress   [   4% ] 021/300 VUs  0m12.9s/5m00.0s
+
+stress   [   5% ] 023/300 VUs  0m13.9s/5m00.0s
+
+stress   [   5% ] 024/300 VUs  0m14.9s/5m00.0s
+
+stress   [   5% ] 026/300 VUs  0m15.9s/5m00.0s
+
+stress   [   6% ] 028/300 VUs  0m16.9s/5m00.0s
+
+stress   [   6% ] 029/300 VUs  0m17.9s/5m00.0s
+
+stress   [   6% ] 031/300 VUs  0m18.9s/5m00.0s
+
+stress   [   7% ] 033/300 VUs  0m19.9s/5m00.0s
+
+stress   [   7% ] 034/300 VUs  0m20.9s/5m00.0s
+
+stress   [   7% ] 036/300 VUs  0m21.9s/5m00.0s
+
+stress   [   8% ] 038/300 VUs  0m22.9s/5m00.0s
+
+stress   [   8% ] 039/300 VUs  0m23.9s/5m00.0s
+
+stress   [   8% ] 041/300 VUs  0m24.9s/5m00.0s
+
+stress   [   9% ] 043/300 VUs  0m25.9s/5m00.0s
+
+stress   [   9% ] 044/300 VUs  0m26.9s/5m00.0s
+
+stress   [   9% ] 046/300 VUs  0m27.9s/5m00.0s
+
+stress   [  10% ] 048/300 VUs  0m28.9s/5m00.0s
+
+stress   [  10% ] 049/300 VUs  0m29.9s/5m00.0s
+
+stress   [  10% ] 051/300 VUs  0m30.9s/5m00.0s
+
+stress   [  11% ] 053/300 VUs  0m31.9s/5m00.0s
+
+stress   [  11% ] 054/300 VUs  0m32.9s/5m00.0s
+
+stress   [  11% ] 056/300 VUs  0m33.9s/5m00.0s
+
+stress   [  12% ] 058/300 VUs  0m34.9s/5m00.0s
+
+stress   [  12% ] 059/300 VUs  0m35.9s/5m00.0s
+
+stress   [  12% ] 061/300 VUs  0m36.9s/5m00.0s
+
+stress   [  13% ] 063/300 VUs  0m37.9s/5m00.0s
+
+stress   [  13% ] 064/300 VUs  0m38.9s/5m00.0s
+
+stress   [  13% ] 066/300 VUs  0m39.9s/5m00.0s
+
+stress   [  14% ] 068/300 VUs  0m40.9s/5m00.0s
+
+stress   [  14% ] 069/300 VUs  0m41.9s/5m00.0s
+
+stress   [  14% ] 071/300 VUs  0m42.9s/5m00.0s
+
+stress   [  15% ] 073/300 VUs  0m43.9s/5m00.0s
+
+stress   [  15% ] 074/300 VUs  0m44.9s/5m00.0s
+
+stress   [  15% ] 076/300 VUs  0m45.9s/5m00.0s
+
+stress   [  16% ] 078/300 VUs  0m46.9s/5m00.0s
+
+stress   [  16% ] 079/300 VUs  0m47.9s/5m00.0s
+
+stress   [  16% ] 081/300 VUs  0m48.9s/5m00.0s
+
+stress   [  17% ] 083/300 VUs  0m49.9s/5m00.0s
+
+stress   [  17% ] 084/300 VUs  0m50.9s/5m00.0s
+
+stress   [  17% ] 086/300 VUs  0m51.9s/5m00.0s
+
+stress   [  18% ] 088/300 VUs  0m52.9s/5m00.0s
+
+stress   [  18% ] 089/300 VUs  0m53.9s/5m00.0s
+
+stress   [  18% ] 091/300 VUs  0m54.9s/5m00.0s
+
+stress   [  19% ] 093/300 VUs  0m55.9s/5m00.0s
+
+stress   [  19% ] 094/300 VUs  0m56.9s/5m00.0s
+
+stress   [  19% ] 096/300 VUs  0m57.9s/5m00.0s
+
+stress   [  20% ] 098/300 VUs  0m58.9s/5m00.0s
+
+stress   [  20% ] 099/300 VUs  0m59.9s/5m00.0s
+
+stress   [  20% ] 101/300 VUs  1m00.9s/5m00.0s
+
+stress   [  21% ] 103/300 VUs  1m01.9s/5m00.0s
+
+stress   [  21% ] 104/300 VUs  1m02.9s/5m00.0s
+
+stress   [  21% ] 106/300 VUs  1m03.9s/5m00.0s
+
+stress   [  22% ] 108/300 VUs  1m04.9s/5m00.0s
+
+stress   [  22% ] 109/300 VUs  1m05.9s/5m00.0s
+
+stress   [  22% ] 111/300 VUs  1m06.9s/5m00.0s
+
+stress   [  23% ] 113/300 VUs  1m07.9s/5m00.0s
+
+stress   [  23% ] 114/300 VUs  1m08.9s/5m00.0s
+
+stress   [  23% ] 116/300 VUs  1m09.9s/5m00.0s
+
+stress   [  24% ] 118/300 VUs  1m10.9s/5m00.0s
+
+stress   [  24% ] 119/300 VUs  1m11.9s/5m00.0s
+
+stress   [  24% ] 121/300 VUs  1m12.9s/5m00.0s
+
+stress   [  25% ] 123/300 VUs  1m13.9s/5m00.0s
+
+stress   [  25% ] 124/300 VUs  1m14.9s/5m00.0s
+
+stress   [  25% ] 126/300 VUs  1m15.9s/5m00.0s
+
+stress   [  26% ] 128/300 VUs  1m16.9s/5m00.0s
+
+stress   [  26% ] 129/300 VUs  1m17.9s/5m00.0s
+
+stress   [  26% ] 131/300 VUs  1m18.9s/5m00.0s
+
+stress   [  27% ] 133/300 VUs  1m19.9s/5m00.0s
+
+stress   [  27% ] 134/300 VUs  1m20.9s/5m00.0s
+
+stress   [  27% ] 136/300 VUs  1m21.9s/5m00.0s
+
+stress   [  28% ] 138/300 VUs  1m22.9s/5m00.0s
+
+stress   [  28% ] 139/300 VUs  1m23.9s/5m00.0s
+
+stress   [  28% ] 141/300 VUs  1m24.9s/5m00.0s
+
+stress   [  29% ] 143/300 VUs  1m25.9s/5m00.0s
+
+stress   [  29% ] 144/300 VUs  1m26.9s/5m00.0s
+
+stress   [  29% ] 146/300 VUs  1m27.9s/5m00.0s
+
+stress   [  30% ] 148/300 VUs  1m28.9s/5m00.0s
+
+stress   [  30% ] 149/300 VUs  1m29.9s/5m00.0s
+
+stress   [  30% ] 151/300 VUs  1m30.9s/5m00.0s
+
+stress   [  31% ] 152/300 VUs  1m31.9s/5m00.0s
+
+stress   [  31% ] 153/300 VUs  1m32.9s/5m00.0s
+
+stress   [  31% ] 154/300 VUs  1m33.9s/5m00.0s
+
+stress   [  32% ] 156/300 VUs  1m34.9s/5m00.0s
+
+stress   [  32% ] 157/300 VUs  1m35.9s/5m00.0s
+
+stress   [  32% ] 158/300 VUs  1m36.9s/5m00.0s
+
+stress   [  33% ] 159/300 VUs  1m37.9s/5m00.0s
+
+stress   [  33% ] 161/300 VUs  1m38.9s/5m00.0s
+
+stress   [  33% ] 162/300 VUs  1m39.9s/5m00.0s
+
+stress   [  34% ] 163/300 VUs  1m40.9s/5m00.0s
+
+stress   [  34% ] 164/300 VUs  1m41.9s/5m00.0s
+
+stress   [  34% ] 166/300 VUs  1m42.9s/5m00.0s
+
+stress   [  35% ] 167/300 VUs  1m43.9s/5m00.0s
+
+stress   [  35% ] 168/300 VUs  1m44.9s/5m00.0s
+
+stress   [  35% ] 169/300 VUs  1m45.9s/5m00.0s
+
+stress   [  36% ] 171/300 VUs  1m46.9s/5m00.0s
+
+stress   [  36% ] 172/300 VUs  1m47.9s/5m00.0s
+
+stress   [  36% ] 173/300 VUs  1m48.9s/5m00.0s
+
+stress   [  37% ] 174/300 VUs  1m49.9s/5m00.0s
+
+stress   [  37% ] 176/300 VUs  1m50.9s/5m00.0s
+
+stress   [  37% ] 177/300 VUs  1m51.9s/5m00.0s
+
+stress   [  38% ] 178/300 VUs  1m52.9s/5m00.0s
+
+stress   [  38% ] 179/300 VUs  1m53.9s/5m00.0s
+
+stress   [  38% ] 181/300 VUs  1m54.9s/5m00.0s
+
+stress   [  39% ] 182/300 VUs  1m55.9s/5m00.0s
+
+stress   [  39% ] 183/300 VUs  1m56.9s/5m00.0s
+
+stress   [  39% ] 184/300 VUs  1m57.9s/5m00.0s
+
+stress   [  40% ] 186/300 VUs  1m58.9s/5m00.0s
+
+stress   [  40% ] 187/300 VUs  1m59.9s/5m00.0s
+
+stress   [  40% ] 188/300 VUs  2m00.9s/5m00.0s
+
+stress   [  41% ] 189/300 VUs  2m01.9s/5m00.0s
+
+stress   [  41% ] 191/300 VUs  2m02.9s/5m00.0s
+
+stress   [  41% ] 192/300 VUs  2m03.9s/5m00.0s
+
+stress   [  42% ] 193/300 VUs  2m04.9s/5m00.0s
+
+stress   [  42% ] 194/300 VUs  2m05.9s/5m00.0s
+
+stress   [  42% ] 196/300 VUs  2m06.9s/5m00.0s
+
+stress   [  43% ] 197/300 VUs  2m07.9s/5m00.0s
+
+stress   [  43% ] 198/300 VUs  2m08.9s/5m00.0s
+
+stress   [  43% ] 199/300 VUs  2m09.9s/5m00.0s
+
+stress   [  44% ] 201/300 VUs  2m10.9s/5m00.0s
+
+stress   [  44% ] 202/300 VUs  2m11.9s/5m00.0s
+
+stress   [  44% ] 203/300 VUs  2m12.9s/5m00.0s
+
+stress   [  45% ] 204/300 VUs  2m13.9s/5m00.0s
+
+stress   [  45% ] 206/300 VUs  2m14.9s/5m00.0s
+
+stress   [  45% ] 207/300 VUs  2m15.9s/5m00.0s
+
+stress   [  46% ] 208/300 VUs  2m16.9s/5m00.0s
+
+stress   [  46% ] 209/300 VUs  2m17.9s/5m00.0s
+
+stress   [  46% ] 211/300 VUs  2m18.9s/5m00.0s
+
+stress   [  47% ] 212/300 VUs  2m19.9s/5m00.0s
+
+stress   [  47% ] 213/300 VUs  2m20.9s/5m00.0s
+
+stress   [  47% ] 214/300 VUs  2m21.9s/5m00.0s
+
+stress   [  48% ] 216/300 VUs  2m22.9s/5m00.0s
+
+stress   [  48% ] 217/300 VUs  2m23.9s/5m00.0s
+
+stress   [  48% ] 218/300 VUs  2m24.9s/5m00.0s
+
+stress   [  49% ] 219/300 VUs  2m25.9s/5m00.0s
+
+stress   [  49% ] 221/300 VUs  2m26.9s/5m00.0s
+
+stress   [  49% ] 222/300 VUs  2m27.9s/5m00.0s
+
+stress   [  50% ] 223/300 VUs  2m28.9s/5m00.0s
+
+stress   [  50% ] 224/300 VUs  2m29.9s/5m00.0s
+
+stress   [  50% ] 226/300 VUs  2m30.9s/5m00.0s
+
+stress   [  51% ] 227/300 VUs  2m31.9s/5m00.0s
+
+stress   [  51% ] 228/300 VUs  2m32.9s/5m00.0s
+
+stress   [  51% ] 229/300 VUs  2m33.9s/5m00.0s
+
+stress   [  52% ] 231/300 VUs  2m34.9s/5m00.0s
+
+stress   [  52% ] 232/300 VUs  2m35.9s/5m00.0s
+
+stress   [  52% ] 233/300 VUs  2m36.9s/5m00.0s
+
+stress   [  53% ] 234/300 VUs  2m37.9s/5m00.0s
+
+stress   [  53% ] 236/300 VUs  2m38.9s/5m00.0s
+
+stress   [  53% ] 237/300 VUs  2m39.9s/5m00.0s
+
+stress   [  54% ] 238/300 VUs  2m40.9s/5m00.0s
+
+stress   [  54% ] 239/300 VUs  2m41.9s/5m00.0s
+
+stress   [  54% ] 241/300 VUs  2m42.9s/5m00.0s
+
+stress   [  55% ] 242/300 VUs  2m43.9s/5m00.0s
+
+stress   [  55% ] 243/300 VUs  2m44.9s/5m00.0s
+
+stress   [  55% ] 244/300 VUs  2m45.9s/5m00.0s
+
+stress   [  56% ] 246/300 VUs  2m46.9s/5m00.0s
+
+stress   [  56% ] 247/300 VUs  2m47.9s/5m00.0s
+
+stress   [  56% ] 248/300 VUs  2m48.9s/5m00.0s
+
+stress   [  57% ] 249/300 VUs  2m49.9s/5m00.0s
+
+stress   [  57% ] 251/300 VUs  2m50.9s/5m00.0s
+
+stress   [  57% ] 252/300 VUs  2m51.9s/5m00.0s
+
+stress   [  58% ] 253/300 VUs  2m52.9s/5m00.0s
+
+stress   [  58% ] 254/300 VUs  2m53.9s/5m00.0s
+
+stress   [  58% ] 256/300 VUs  2m54.9s/5m00.0s
+
+stress   [  59% ] 257/300 VUs  2m55.9s/5m00.0s
+
+stress   [  59% ] 258/300 VUs  2m56.9s/5m00.0s
+
+stress   [  59% ] 259/300 VUs  2m57.9s/5m00.0s
+
+stress   [  60% ] 261/300 VUs  2m58.9s/5m00.0s
+
+stress   [  60% ] 262/300 VUs  2m59.9s/5m00.0s
+
+stress   [  60% ] 263/300 VUs  3m00.9s/5m00.0s
+
+stress   [  61% ] 264/300 VUs  3m01.9s/5m00.0s
+
+stress   [  61% ] 266/300 VUs  3m02.9s/5m00.0s
+
+stress   [  61% ] 267/300 VUs  3m03.9s/5m00.0s
+
+stress   [  62% ] 268/300 VUs  3m04.9s/5m00.0s
+
+stress   [  62% ] 269/300 VUs  3m05.9s/5m00.0s
+
+stress   [  62% ] 271/300 VUs  3m06.9s/5m00.0s
+
+stress   [  63% ] 272/300 VUs  3m07.9s/5m00.0s
+
+stress   [  63% ] 273/300 VUs  3m08.9s/5m00.0s
+
+stress   [  63% ] 274/300 VUs  3m09.9s/5m00.0s
+
+stress   [  64% ] 276/300 VUs  3m10.9s/5m00.0s
+
+stress   [  64% ] 277/300 VUs  3m11.9s/5m00.0s
+
+stress   [  64% ] 278/300 VUs  3m12.9s/5m00.0s
+
+stress   [  65% ] 279/300 VUs  3m13.9s/5m00.0s
+
+stress   [  65% ] 281/300 VUs  3m14.9s/5m00.0s
+
+stress   [  65% ] 282/300 VUs  3m15.9s/5m00.0s
+
+stress   [  66% ] 283/300 VUs  3m16.9s/5m00.0s
+
+stress   [  66% ] 284/300 VUs  3m17.9s/5m00.0s
+
+stress   [  66% ] 286/300 VUs  3m18.9s/5m00.0s
+
+stress   [  67% ] 287/300 VUs  3m19.9s/5m00.0s
+
+stress   [  67% ] 288/300 VUs  3m20.9s/5m00.0s
+
+stress   [  67% ] 289/300 VUs  3m21.9s/5m00.0s
+
+stress   [  68% ] 291/300 VUs  3m22.9s/5m00.0s
+
+stress   [  68% ] 292/300 VUs  3m23.9s/5m00.0s
+
+stress   [  68% ] 293/300 VUs  3m24.9s/5m00.0s
+
+stress   [  69% ] 294/300 VUs  3m25.9s/5m00.0s
+
+stress   [  69% ] 296/300 VUs  3m26.9s/5m00.0s
+
+stress   [  69% ] 297/300 VUs  3m27.9s/5m00.0s
+
+stress   [  70% ] 298/300 VUs  3m28.9s/5m00.0s
+
+stress   [  70% ] 299/300 VUs  3m29.9s/5m00.0s
+
+stress   [  70% ] 300/300 VUs  3m30.9s/5m00.0s
+
+stress   [  71% ] 300/300 VUs  3m31.9s/5m00.0s
+
+stress   [  71% ] 300/300 VUs  3m32.9s/5m00.0s
+
+stress   [  71% ] 300/300 VUs  3m33.9s/5m00.0s
+
+stress   [  72% ] 300/300 VUs  3m34.9s/5m00.0s
+
+stress   [  72% ] 300/300 VUs  3m35.9s/5m00.0s
+
+stress   [  72% ] 300/300 VUs  3m36.9s/5m00.0s
+
+stress   [  73% ] 300/300 VUs  3m37.9s/5m00.0s
+
+stress   [  73% ] 300/300 VUs  3m38.9s/5m00.0s
+
+stress   [  73% ] 300/300 VUs  3m39.9s/5m00.0s
+
+stress   [  74% ] 300/300 VUs  3m40.9s/5m00.0s
+
+stress   [  74% ] 300/300 VUs  3m41.9s/5m00.0s
+
+stress   [  74% ] 300/300 VUs  3m42.9s/5m00.0s
+
+stress   [  75% ] 300/300 VUs  3m43.9s/5m00.0s
+
+stress   [  75% ] 300/300 VUs  3m44.9s/5m00.0s
+
+stress   [  75% ] 300/300 VUs  3m45.9s/5m00.0s
+
+stress   [  76% ] 300/300 VUs  3m46.9s/5m00.0s
+
+stress   [  76% ] 300/300 VUs  3m47.9s/5m00.0s
+
+stress   [  76% ] 300/300 VUs  3m48.9s/5m00.0s
+
+stress   [  77% ] 300/300 VUs  3m49.9s/5m00.0s
+
+stress   [  77% ] 300/300 VUs  3m50.9s/5m00.0s
+
+stress   [  77% ] 300/300 VUs  3m51.9s/5m00.0s
+
+stress   [  78% ] 300/300 VUs  3m52.9s/5m00.0s
+
+stress   [  78% ] 300/300 VUs  3m53.9s/5m00.0s
+
+stress   [  78% ] 300/300 VUs  3m54.9s/5m00.0s
+
+stress   [  79% ] 300/300 VUs  3m55.9s/5m00.0s
+
+stress   [  79% ] 300/300 VUs  3m56.9s/5m00.0s
+
+stress   [  79% ] 300/300 VUs  3m57.9s/5m00.0s
+
+stress   [  80% ] 300/300 VUs  3m58.9s/5m00.0s
+
+stress   [  80% ] 300/300 VUs  3m59.9s/5m00.0s
+
+stress   [  80% ] 300/300 VUs  4m00.9s/5m00.0s
+
+stress   [  81% ] 300/300 VUs  4m01.9s/5m00.0s
+
+stress   [  81% ] 300/300 VUs  4m02.9s/5m00.0s
+
+stress   [  81% ] 300/300 VUs  4m03.9s/5m00.0s
+
+stress   [  82% ] 300/300 VUs  4m04.9s/5m00.0s
+
+stress   [  82% ] 300/300 VUs  4m05.9s/5m00.0s
+
+stress   [  82% ] 300/300 VUs  4m06.9s/5m00.0s
+
+stress   [  83% ] 300/300 VUs  4m07.9s/5m00.0s
+
+stress   [  83% ] 300/300 VUs  4m08.9s/5m00.0s
+
+stress   [  83% ] 300/300 VUs  4m09.9s/5m00.0s
+
+stress   [  84% ] 300/300 VUs  4m10.9s/5m00.0s
+
+stress   [  84% ] 300/300 VUs  4m11.9s/5m00.0s
+
+stress   [  84% ] 300/300 VUs  4m12.9s/5m00.0s
+
+stress   [  85% ] 300/300 VUs  4m13.9s/5m00.0s
+
+stress   [  85% ] 300/300 VUs  4m14.9s/5m00.0s
+
+stress   [  85% ] 300/300 VUs  4m15.9s/5m00.0s
+
+stress   [  86% ] 300/300 VUs  4m16.9s/5m00.0s
+
+stress   [  86% ] 300/300 VUs  4m17.9s/5m00.0s
+
+stress   [  86% ] 300/300 VUs  4m18.9s/5m00.0s
+
+stress   [  87% ] 300/300 VUs  4m19.9s/5m00.0s
+
+stress   [  87% ] 300/300 VUs  4m20.9s/5m00.0s
+
+stress   [  87% ] 300/300 VUs  4m21.9s/5m00.0s
+
+stress   [  88% ] 300/300 VUs  4m22.9s/5m00.0s
+
+stress   [  88% ] 300/300 VUs  4m23.9s/5m00.0s
+
+stress   [  88% ] 300/300 VUs  4m24.9s/5m00.0s
+
+stress   [  89% ] 300/300 VUs  4m25.9s/5m00.0s
+
+stress   [  89% ] 300/300 VUs  4m26.9s/5m00.0s
+
+stress   [  89% ] 300/300 VUs  4m27.9s/5m00.0s
+
+stress   [  90% ] 300/300 VUs  4m28.9s/5m00.0s
+
+stress   [  90% ] 300/300 VUs  4m29.9s/5m00.0s
+
+stress   [  90% ] 299/300 VUs  4m30.9s/5m00.0s
+
+stress   [  91% ] 299/300 VUs  4m31.9s/5m00.0s
+
+stress   [  91% ] 299/300 VUs  4m32.9s/5m00.0s
+
+stress   [  91% ] 299/300 VUs  4m33.9s/5m00.0s
+
+stress   [  92% ] 297/300 VUs  4m34.9s/5m00.0s
+
+stress   [  92% ] 296/300 VUs  4m35.9s/5m00.0s
+
+stress   [  92% ] 295/300 VUs  4m36.9s/5m00.0s
+
+stress   [  93% ] 293/300 VUs  4m37.9s/5m00.0s
+
+stress   [  93% ] 290/300 VUs  4m38.9s/5m00.0s
+
+stress   [  93% ] 289/300 VUs  4m39.9s/5m00.0s
+
+stress   [  94% ] 278/300 VUs  4m40.9s/5m00.0s
+
+stress   [  94% ] 265/300 VUs  4m41.9s/5m00.0s
+
+stress   [  94% ] 256/300 VUs  4m42.9s/5m00.0s
+
+stress   [  95% ] 249/300 VUs  4m43.9s/5m00.0s
+
+stress   [  95% ] 237/300 VUs  4m44.9s/5m00.0s
+
+stress   [  95% ] 226/300 VUs  4m45.9s/5m00.0s
+
+stress   [  96% ] 220/300 VUs  4m46.9s/5m00.0s
+
+stress   [  96% ] 206/300 VUs  4m47.9s/5m00.0s
+
+stress   [  96% ] 194/300 VUs  4m48.9s/5m00.0s
+
+stress   [  97% ] 190/300 VUs  4m49.9s/5m00.0s
+
+stress   [  97% ] 177/300 VUs  4m50.9s/5m00.0s
+
+stress   [  97% ] 166/300 VUs  4m51.9s/5m00.0s
+
+stress   [  98% ] 159/300 VUs  4m52.9s/5m00.0s
+
+stress   [  98% ] 144/300 VUs  4m53.9s/5m00.0s
+
+stress   [  98% ] 135/300 VUs  4m54.9s/5m00.0s
+
+stress   [  99% ] 118/300 VUs  4m55.9s/5m00.0s
+
+stress   [  99% ] 114/300 VUs  4m56.9s/5m00.0s
+
+stress   [  99% ] 099/300 VUs  4m57.9s/5m00.0s
+
+stress   [ 100% ] 093/300 VUs  4m58.9s/5m00.0s
+
+stress   [ 100% ] 084/300 VUs  4m59.9s/5m00.0s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✗ 'p(95)<5000' p(95)=30.02s
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 2471    7.264239/s
+    checks_succeeded...: 100.00% 2471 out of 2471
+    checks_failed......: 0.00%   0 out of 2471
+
+    ✓ response received
+
+    HTTP
+    http_req_duration..............: avg=21.99s min=59.04ms  med=27.03s max=30.12s p(90)=30.01s p(95)=30.02s
+      { expected_response:true }...: avg=16.76s min=59.04ms  med=17.06s max=29.99s p(90)=27.83s p(95)=28.67s
+    http_req_failed................: 44.96% 1112 out of 2473
+    http_reqs......................: 2473   7.270119/s
+
+    EXECUTION
+    iteration_duration.............: avg=22.1s  min=160.41ms med=27.13s max=30.22s p(90)=30.11s p(95)=30.12s
+    iterations.....................: 2471   7.264239/s
+    vus............................: 0      min=0            max=300
+    vus_max........................: 300    min=300          max=300
+
+    NETWORK
+    data_received..................: 836 kB 2.5 kB/s
+    data_sent......................: 441 kB 1.3 kB/s
+
+
+
+

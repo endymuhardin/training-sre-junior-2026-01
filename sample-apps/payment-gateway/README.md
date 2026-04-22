@@ -264,7 +264,7 @@ jq -c 'select(.status=="FAILED")' logs/payment-app.log
 
 ## Stress testing dengan k6
 
-Ada tiga script k6 di folder `loadtest/`. Masing-masing menyasar tujuan training
+Ada empat script k6 di folder `loadtest/`. Masing-masing menyasar tujuan training
 yang berbeda:
 
 | Script                | Skenario                                                        | Yang diamati                                                   |
@@ -272,6 +272,12 @@ yang berbeda:
 | `k6-baseline.js`      | 4 menit, ramp ke 20 VU                                          | mengisi `logs/payment-app.log` dengan campuran RC untuk analisis |
 | `k6-stress.js`        | 5 menit, ramp ke 300 VU, **simulasi CPU diaktifkan via setup**  | saturasi CPU, event-loop lag, tail latency                     |
 | `k6-soak.js`          | 15 menit konstan 40 VU, **retensi memori diaktifkan via setup** | pertumbuhan RSS/heap, tekanan GC                               |
+| `k6-capacity.js`      | constant-arrival-rate, parameterized (`RPS=… DURATION=…`)       | batas throughput + knee of the curve untuk capacity planning   |
+
+Untuk `k6-capacity.js` (capacity planning), prosedur lengkap — ramp
+multi-step, cara ekstraksi data per step, cara interpretasi, dan hasil
+aktual dari server training — ada di dokumen terpisah:
+[loadtest/CAPACITY.md](loadtest/CAPACITY.md).
 
 ### Instal k6
 
@@ -587,9 +593,11 @@ sample-apps/payment-gateway/
 ├── config/default.json       # config otoritatif, tidak ada silent defaults
 ├── logs/                     # output log saat runtime (gitignored)
 ├── loadtest/
+│   ├── CAPACITY.md           # procedure + hasil capacity planning
 │   ├── k6-baseline.js        # traffic campuran yang stabil untuk mengisi log
 │   ├── k6-stress.js          # ramp-up, mengaktifkan jalur CPU-intensive
-│   └── k6-soak.js            # jangka panjang, mengaktifkan retensi memori
+│   ├── k6-soak.js            # jangka panjang, mengaktifkan retensi memori
+│   └── k6-capacity.js        # constant-arrival-rate, parameterized per-run
 ├── package.json
 ├── README.md
 └── src/
