@@ -69,6 +69,28 @@ function validate(cfg) {
   if (!Array.isArray(methods) || methods.length === 0) {
     throw new Error('simulation.methods must be a non-empty array');
   }
+
+  const cpu = requireKey(cfg, 'simulation.cpu');
+  if (typeof cpu.enabled !== 'boolean') {
+    throw new Error('simulation.cpu.enabled must be a boolean');
+  }
+  if (typeof cpu.probability !== 'number' || cpu.probability < 0 || cpu.probability > 1) {
+    throw new Error(`simulation.cpu.probability must be a number in [0,1], got: ${cpu.probability}`);
+  }
+  if (!Number.isInteger(cpu.hashRounds) || cpu.hashRounds < 0) {
+    throw new Error(`simulation.cpu.hashRounds must be a non-negative integer, got: ${cpu.hashRounds}`);
+  }
+
+  const mem = requireKey(cfg, 'simulation.memory');
+  if (typeof mem.retainRecords !== 'boolean') {
+    throw new Error('simulation.memory.retainRecords must be a boolean');
+  }
+  if (!Number.isInteger(mem.maxRecords) || mem.maxRecords <= 0) {
+    throw new Error(`simulation.memory.maxRecords must be a positive integer, got: ${mem.maxRecords}`);
+  }
+  if (!Number.isInteger(mem.payloadKb) || mem.payloadKb < 0) {
+    throw new Error(`simulation.memory.payloadKb must be a non-negative integer, got: ${mem.payloadKb}`);
+  }
 }
 
 function applyEnvOverrides(cfg) {

@@ -81,6 +81,36 @@ function buildAdminRouter(simulator) {
     }
   });
 
+  router.put('/config/cpu', (req, res) => {
+    try {
+      const next = simulator.setCpu(req.body || {});
+      log.warn({ cpu: next }, 'cpu simulation config changed at runtime');
+      res.json({ cpu: next });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.put('/config/memory', (req, res) => {
+    try {
+      const next = simulator.setMemory(req.body || {});
+      log.warn({ memory: next }, 'memory simulation config changed at runtime');
+      res.json({ memory: next });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.post('/memory/clear', (req, res) => {
+    const dropped = simulator.clearRetained();
+    log.warn({ dropped }, 'retained records cleared');
+    res.json({ dropped });
+  });
+
+  router.get('/metrics', (req, res) => {
+    res.json(simulator.getMetrics());
+  });
+
   return router;
 }
 

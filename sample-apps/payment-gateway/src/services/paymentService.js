@@ -19,6 +19,24 @@ class PaymentService {
       'payment request received'
     );
 
+    let cpuBurnMs = 0;
+    let cpuDigest = null;
+    if (this.simulator.shouldBurnCpu()) {
+      const cpuStart = Date.now();
+      cpuDigest = this.simulator.burnCpu();
+      cpuBurnMs = Date.now() - cpuStart;
+      this.log.warn(
+        {
+          traceId,
+          txnId,
+          cpuBurnMs,
+          hashRounds: this.simulator.cfg.simulation.cpu.hashRounds,
+          digestSample: cpuDigest
+        },
+        'cpu-intensive fraud scoring executed'
+      );
+    }
+
     const { outcome, latencyMs } = await this.bank.authorize({
       txnId, traceId, amount, method
     });
@@ -35,8 +53,14 @@ class PaymentService {
       status: outcome.success ? 'SUCCESS' : 'FAILED',
       message: outcome.message,
       bankLatencyMs: latencyMs,
+      cpuBurnMs,
       totalLatencyMs
     };
+
+    const retained = this.simulator.retainRecord(record);
+    if (retained) {
+      record.retained = true;
+    }
 
     if (outcome.success) {
       this.log.info(record, 'payment approved');

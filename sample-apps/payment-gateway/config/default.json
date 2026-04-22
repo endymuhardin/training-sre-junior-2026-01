@@ -25,6 +25,16 @@
       { "rc": "96", "weight": 10, "message": "System Malfunction ISO-8583",      "level": "error", "httpStatus": 500 },
       { "rc": "05", "weight": 5,  "message": "Do Not Honor (Suspected Fraud)",   "level": "error", "httpStatus": 403 }
     ],
-    "methods": ["QRIS", "VA_BCA", "VA_BSI", "VA_MANDIRI", "CREDIT_CARD", "GOPAY", "OVO"]
+    "methods": ["QRIS", "VA_BCA", "VA_BSI", "VA_MANDIRI", "CREDIT_CARD", "GOPAY", "OVO"],
+    "cpu": {
+      "enabled": false,
+      "probability": 0.3,
+      "hashRounds": 150000
+    },
+    "memory": {
+      "retainRecords": false,
+      "maxRecords": 200000,
+      "payloadKb": 8
+    }
   }
 }
