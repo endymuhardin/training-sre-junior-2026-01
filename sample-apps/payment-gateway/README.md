@@ -30,6 +30,42 @@ Server bind ke `0.0.0.0:3000` secara default. Log ditulis ke:
 docker build -t payment-gateway-js .
 ```
 
+### Build Multi-Arch 
+
+Apabila build dilakukan di komputer Macbook dengan Apple Silicon atau Raspberry PI, image yang terbentuk akan berarsitektur `arm64`. Image ini tidak akan bisa dijalankan di prosesor Intel yang berarsitektur `amd64`.
+
+Bila kita ingin membuat image berarsitektur `amd64`, maka kita perlu menggunakan utilitas `buildx`. 
+
+1. Install dulu `buildx`nya
+
+    ```
+    docker buildx create --name multiarch-builder --driver docker-container --use
+    ```
+
+2. Cek apakah sudah terinstall
+
+    ```
+    docker buildx ls
+    ```
+
+    Pastikan `multiarch-builder` sudah terdaftar dan sudah menjadi default
+
+    ```
+    NAME/NODE                DRIVER/ENDPOINT    STATUS    BUILDKIT   PLATFORMS
+    multiarch-builder*       docker-container                        
+    \_ multiarch-builder0    \_ orbstack       running   v0.29.0    linux/amd64 (+2), linux/arm64, linux/arm (+2), linux/ppc64le, (4 more)
+    default                  docker                                  
+    \_ default               \_ default        running   v0.25.2    linux/amd64 (+2), linux/arm64, linux/arm (+2), linux/ppc64le, (4 more)
+    orbstack                 docker                                  
+    \_ orbstack              \_ orbstack       running   v0.25.2    linux/amd64 (+2), linux/arm64, linux/arm (+2), linux/ppc64le, (4 more)
+    ```
+
+3. Lakukan build sekaligus push
+
+    ```
+    docker buildx build --platform linux/amd64,linux/arm64 -t endymuhardin/payment-gateway-js:2026.04.02 -t endymuhardin/payment-gateway-js:latest --push .
+    ```
+
 ## Run Docker Image
 
 ```bash
