@@ -1,0 +1,16 @@
+---
+# tasks file for roles/java
+
+- name: Instal OpenJDK 21
+  ansible.builtin.dnf:
+    name: java-21-openjdk-devel
+    state: present
+
+- name: Verifikasi instalasi Java
+  ansible.builtin.command: java -version
+  register: java_version
+  changed_when: false
+
+- name: Tampilkan versi Java di log
+  ansible.builtin.debug:
+    msg: "{{ java_version.stderr_lines[0] }}"
