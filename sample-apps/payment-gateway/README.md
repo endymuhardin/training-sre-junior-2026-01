@@ -23,6 +23,19 @@ Server bind ke `0.0.0.0:3000` secara default. Log ditulis ke:
 - `logs/payment-app.log` — log aplikasi (JSON per baris)
 - stdout — record yang sama, untuk `docker logs` / `journalctl`
 
+
+## Build Docker Image
+
+```bash
+docker build -t payment-gateway-js .
+```
+
+## Run Docker Image
+
+```bash
+docker run -p 3000:3000 payment-gateway-js
+```
+
 ## API
 
 ### `POST /api/payment`
