@@ -3,10 +3,68 @@
 # Copy source code + npm install + restart service dilakukan oleh
 # GitHub Actions workflow (.github/workflows/deploy.yml), bukan di role ini.
 
-- name: Instal Node.js LTS
-  dnf:
-    name: nodejs
+# --- Node.js LTS dari NodeSource ---
+# Repo AppStream default RHEL 9 memasang Node.js 16 (sudah EOL 2023).
+# Kita pakai repo NodeSource supaya dapat LTS terbaru (lihat pg_nodejs_major).
+
+- name: Impor GPG key NodeSource
+  ansible.builtin.rpm_key:
+    key: https://rpm.nodesource.com/gpgkey/ns-operations-public.key
     state: present
+
+- name: Pasang repo NodeSource Node.js {{ pg_nodejs_major }}.x
+  ansible.builtin.yum_repository:
+    name: nodesource-nodejs
+    description: "Node.js Packages - NodeSource (Node.js {{ pg_nodejs_major }}.x)"
+    baseurl: "https://rpm.nodesource.com/pub_{{ pg_nodejs_major }}.x/nodistro/nodejs/$basearch"
+    gpgcheck: yes
+    gpgkey: https://rpm.nodesource.com/gpgkey/ns-operations-public.key
+    enabled: yes
+    # module_hotfixes memberi tahu dnf untuk mengabaikan modul nodejs
+    # dari AppStream dan memprioritaskan paket dari repo ini.
+    module_hotfixes: yes
+
+- name: Reset modul nodejs AppStream (kalau ada versi lama terpasang via module)
+  ansible.builtin.command: dnf -y module reset nodejs
+  register: dnf_module_reset
+  changed_when: "'Nothing to do' not in dnf_module_reset.stdout"
+  failed_when: false
+
+- name: Disable modul nodejs AppStream supaya tidak nge-bentrok
+  ansible.builtin.command: dnf -y module disable nodejs
+  register: dnf_module_disable
+  changed_when: "'Nothing to do' not in dnf_module_disable.stdout"
+  failed_when: false
+
+# NodeSource package nodejs sudah membundle npm di /usr/lib/node_modules/npm.
+# Paket npm AppStream RHEL (npm-1:8.19.4-*.el9_4) memiliki file di path yang
+# sama, sehingga dnf transaction test gagal dengan "file conflicts". Kita
+# hapus dulu paket nodejs/npm non-NodeSource sebelum instalasi baru.
+- name: Deteksi apakah nodejs terpasang sekarang berasal dari NodeSource
+  ansible.builtin.shell: |
+    set -o pipefail
+    rpm -q --queryformat='%{RELEASE}\n' nodejs 2>/dev/null || echo "NOT_INSTALLED"
+  args:
+    executable: /bin/bash
+  register: nodejs_release
+  changed_when: false
+
+- name: Hapus nodejs/npm lama (AppStream) sebelum instal dari NodeSource
+  ansible.builtin.dnf:
+    name:
+      - nodejs
+      - npm
+    state: absent
+  when:
+    - nodejs_release.stdout != "NOT_INSTALLED"
+    - "'nodesource' not in nodejs_release.stdout"
+
+- name: Instal Node.js {{ pg_nodejs_major }} (LTS) dari NodeSource
+  ansible.builtin.dnf:
+    name: nodejs
+    state: latest
+    allowerasing: yes
+  notify: Restart Payment Gateway
 
 # --- Bersih-bersih artefak aplikasi hello-world lama ---
 
