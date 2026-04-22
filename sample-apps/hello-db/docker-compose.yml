@@ -8,7 +8,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./db-aplikasi:/var/lib/postgresql
     healthcheck:
       # pg_isready balik exit 0 saat server siap menerima koneksi.
       # Tanpa ini, app bisa start duluan dan gagal ping pertama.
@@ -19,7 +19,8 @@ services:
       start_period: 5s
 
   app:
-    build: .
+    # build: .
+    image: endymuhardin/hello-db-go
     environment:
       PORT: 8080
       DB_HOST: db            # DNS otomatis di-provide docker-compose (= service name)
@@ -35,6 +36,3 @@ services:
         # container db ada. Tanpa condition:service_healthy, app bisa berjalan
         # mendahului server postgres siap → error di Ping awal.
         condition: service_healthy
-
-volumes:
-  pgdata:
