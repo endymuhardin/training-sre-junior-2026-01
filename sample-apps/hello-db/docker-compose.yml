@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: hello
+      POSTGRES_PASSWORD: hello
+      POSTGRES_DB: hellodb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready balik exit 0 saat server siap menerima koneksi.
+      # Tanpa ini, app bisa start duluan dan gagal ping pertama.
+      test: ["CMD-SHELL", "pg_isready -U hello -d hellodb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  app:
+    build: .
+    environment:
+      PORT: 8080
+      DB_HOST: db            # DNS otomatis di-provide docker-compose (= service name)
+      DB_PORT: 5432
+      DB_USER: hello
+      DB_PASSWORD: hello
+      DB_NAME: hellodb
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        # app hanya start setelah db lulus healthcheck, bukan sekedar setelah
+        # container db ada. Tanpa condition:service_healthy, app bisa berjalan
+        # mendahului server postgres siap → error di Ping awal.
+        condition: service_healthy
+
+volumes:
+  pgdata:
