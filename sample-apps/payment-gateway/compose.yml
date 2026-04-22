@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: aplikasijs
+      POSTGRES_PASSWORD: aplikasi123
+      POSTGRES_DB: aplikasidb
+    
+    ports:
+      - 54321:5432
+    
+    volumes:
+      - ./db-aplikasi:/var/lib/postgresql
