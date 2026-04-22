@@ -18,6 +18,77 @@ Kapasitas bukan angka tetap — bergantung pada hardware, konfigurasi, versi,
 dan workload mix. Cara paling jujur menjawab: **ukur**, dengan beban yang
 mewakili produksi.
 
+## Capacity planning — gambaran besar
+
+Sebelum masuk ke detail teknis, pahami dulu bentuk umum latihan ini.
+
+### Pertanyaan yang dijawab
+
+> **"Berapa RPS maksimum yang bisa ditangani server SEBELUM user mulai marah?"**
+
+User marah kalau salah satu terjadi:
+
+- Respons terlalu lambat (p95 lewat SLO latency)
+- Terlalu banyak request gagal (error rate di atas SLO availability)
+
+Selain dua itu, server boleh 100 % CPU dan user tetap senang. Jadi kapasitas
+bukan soal "sampai di mana mesin kuat", melainkan **sampai di mana kontrak
+SLO masih terpenuhi**. Ini yang membedakan capacity planning SRE dari
+benchmarking murni.
+
+### Prosedur 3-langkah
+
+```
+  1. Kirim beban bertahap   →   2. Ukur 3 sinyal     →   3. Cari knee
+     25, 50, 100, … RPS          - throughput delivered    titik di mana
+     (constant-arrival-rate)     - latency p95 / p99       latency mulai
+                                 - error rate              naik tajam
+```
+
+Output dari ramp seperti ini **selalu** punya bentuk kurva yang sama —
+region datar di beban rendah, knee, lalu collapse di beban tinggi:
+
+```
+  p95 latency
+     │                Collapse
+     │              ╱──────
+     │            ╱    ← server menolak koneksi,
+     │          ╱        fail-rate meledak
+     │   Knee ╱       ← titik keputusan
+     │_____╱             (SLO-safe max ada di sini)
+     │  Flat
+     │___________________________ RPS
+          (beban operasional aman)
+```
+
+### Tiga angka yang dibawa pulang
+
+| Angka                | Arti                                            | Dipakai untuk                           |
+|----------------------|-------------------------------------------------|-----------------------------------------|
+| SLO-safe max RPS     | Beban maksimum di mana p95 & error_rate SLO masih lolos | baseline kapasitas yang "diakui"       |
+| Operational max RPS  | 60–70 % dari SLO-safe max                       | threshold auto-scale + paging threshold |
+| CPU / req (di flat)  | Biaya CPU per request di region datar           | estimasi kapasitas kalau hardware / replica berubah |
+
+Untuk aplikasi ini, angka-angka tersebut — **SLO-safe max ≈ 800 RPS**,
+**operasional 480–560 RPS**, **CPU ≈ 0.55 ms / req** — dihitung di section
+[Knee vs SLO-safe max](#knee-vs-slo-safe-max) di bawah. Seluruh isi dokumen
+selanjutnya adalah cara **memperoleh** ketiga angka itu secara jujur,
+bukan artefak tool atau config.
+
+### Yang TIDAK dibahas di sini
+
+- **Forecasting** (prediksi traffic masa depan berdasarkan growth bisnis)
+  — itu tugas data analyst/capacity planner di perusahaan besar; dokumen
+  ini hanya mengukur kapasitas saat ini.
+- **Penentuan SLO** — kita asumsikan SLO sudah ditetapkan oleh product
+  atau stakeholder. Tugas SRE adalah memverifikasi sistem bisa memenuhinya.
+- **Chaos / failure testing** — capacity test beda dengan resilience test.
+  Ini mengukur kapasitas di kondisi sehat, bukan saat node mati.
+- **Cost planning** — angka CPU / req bisa jadi input cost model (misalnya
+  $X per 1 juta request), tapi itu kalkulasi terpisah.
+
+Lanjut ke prinsip teknis untuk memastikan angka yang keluar valid.
+
 ## Prinsip yang dipakai
 
 ### 1. Gunakan arrival-rate, bukan VU-count
@@ -161,13 +232,80 @@ Untuk tiap RPS, jawab:
    refused, dll.).
 3. **Apakah server masih responsive di sisi lain?** `/api/admin/metrics`
    seharusnya balik < 100 ms. Kalau timeout = event loop tersumbat.
-4. **CPU saturasi?** `cpuUsage.userMs` yang naik > 1000 ms per detik
-   (per core) = 100% satu core terpakai. Node single-threaded untuk JS,
-   jadi batas ini cepat tercapai di workload CPU-intensive.
+4. **CPU saturasi?** `cpuUsage.userMs` delta per interval >> `100%` core →
+   saturasi. Lihat subsection di bawah untuk konversi angka mentah ke %.
 5. **Memory drift?** `rssMb` stabil = sehat. Kalau naik tanpa batas di
    beban konstan = leak.
 
 Tandai titik di mana SALAH SATU jawaban mulai "tidak". Itu knee-nya.
+
+### Konversi CPU: ms → %
+
+`process.cpuUsage()` di Node mengembalikan **waktu CPU kumulatif** yang
+dihabiskan proses sejak start, bukan persentase. Field `userMs` = waktu CPU
+mode user (menjalankan kode JS), `systemMs` = waktu CPU mode kernel (syscall).
+
+Untuk dapat persentase yang biasa Anda lihat di `top`/`htop`, konversi
+secara manual:
+
+```
+% satu core = (delta_userMs) / (durasi_wall_clock_sec × 1000) × 100
+```
+
+Intuisinya: 1 detik wall clock memberi 1000 ms budget CPU per core. Kalau
+proses pakai 500 ms CPU dalam 1 detik = 50 % dari 1 core. Kalau pakai 2000 ms
+dalam 1 detik = 200 % = proses pakai 2 core penuh.
+
+Contoh dari tabel hasil di bawah (step 1 600 RPS):
+
+```
+delta_userMs = 489 270.87 − 448 220.68 = 41 050.19 ms
+durasi       = 60 detik (1 step = 60 s wall clock)
+% 1 core     = 41 050 / (60 × 1000) × 100 = 68.4 %
+```
+
+Server training punya 2 core, jadi interpretasinya:
+
+- **68 % dari 1 core** — yang dipakai Node (single-threaded JS)
+- **34 % dari kapasitas mesin** — porsi total resource VM yang dipakai Node
+
+Yang relevan untuk Node **adalah kolom pertama**. Node JS main thread hanya
+bisa pakai 1 core maksimum (100 %). Core ke-2 idle-lah yang terlihat sebagai
+"masih banyak" di `top`, padahal dari sisi Node app sudah hampir penuh.
+
+Snippet untuk menambah kolom `% 1 core` ke hasil ekstraksi di atas:
+
+```bash
+DURATION_SEC=60   # cocokkan dengan DURATION yang dipakai k6
+DIR=${DIR:-logs/samples/capacity}
+
+echo "step,cpu_delta_ms,cpu_pct_1core,cpu_pct_vm_2core"
+for rps in 25 50 100 200 400 800 1600 2400; do
+  cpu_b=$(jq -r '.cpuUsage.userMs' $DIR/metrics-before-$rps.json)
+  cpu_a=$(jq -r '.cpuUsage.userMs' $DIR/metrics-after-$rps.json)
+  awk -v rps=$rps -v a=$cpu_a -v b=$cpu_b -v d=$DURATION_SEC 'BEGIN{
+    delta = a - b
+    pct1  = delta / (d * 1000) * 100
+    pct2  = pct1 / 2       # VM ini punya 2 core
+    printf "%d,%.0f,%.1f%%,%.1f%%\n", rps, delta, pct1, pct2
+  }'
+done
+```
+
+**Cara cross-check dari `top` selama run berjalan**:
+
+- `top -p <pid>` → lihat kolom `%CPU`. Satuannya **per-core** di default
+  Linux (`Irix mode` ON). Node sibuk biasanya tampil 90–100 % (bukan 50 %).
+- Toggle ke mode total (`Solaris mode`, tekan `I` di `top`) → angka di-bagi
+  jumlah core. Di VM 2-core, Node max = 50 %.
+- Cocok dengan perhitungan di atas: kalau kolom sampel di bawah menunjukkan
+  **68 % dari 1 core**, `top -p` sampling di detik yang sama seharusnya
+  sekitar 60–70 % (dengan noise).
+
+**Pitfall**: kalau interval polling Anda bukan 60 s (mis. 5 s), ganti
+`DURATION_SEC` sesuai. Persentase CPU dihitung per-interval, bukan per-test
+total. Jangan pakai `userMs / uptimeSec` karena itu rata-rata seluruh hidup
+proses, bukan beban saat ini.
 
 ## Hasil aktual — server training (Azure VM 2-core / 7.5 GB / Node 22 LTS)
 
@@ -200,20 +338,26 @@ cd sample-apps/payment-gateway
 DIR=logs/samples/capacity   # lihat snippet di section "Ekstraksi data per step"
 ```
 
-| Target RPS | Delivered RPS | % target | p50     | p95      | p99    | fail %  | CPU delta (ms/60s) | CPU / req |
-|-----------:|--------------:|---------:|--------:|---------:|-------:|--------:|-------------------:|----------:|
-|       25   |        22.9   |    92%   |  138 ms |   215 ms |   4 s  |   7.11% |            1 673   | 1.11 ms   |
-|       50   |        44.9   |    90%   |  134 ms |   206 ms | 397 ms |   7.85% |            2 068   | 0.69 ms   |
-|      100   |        91.4   |    91%   |  126 ms |   190 ms | 3.39 s |   7.46% |            3 685   | 0.61 ms   |
-|      200   |       177.4   |    89%   |  126 ms |   190 ms | 3.59 s |   7.99% |            7 027   | 0.59 ms   |
-|      400   |       357.2   |    89%   |  125 ms |   189 ms | 3.98 s |   7.99% |           12 637   | 0.53 ms   |
-|      800   |       710.4   |    89%   |  128 ms |   194 ms | 3.83 s |   8.05% |           25 031   | 0.52 ms   |
-|     1 600  |     1 365.9   |    85%   |  483 ms |  1.58 s  | 3.93 s |  23.63% |           41 050   | 0.43 ms*  |
-|     2 400  |     1 909.5   |    80%   |  419 ms |  1.54 s  | 3.64 s |  51.45% |           38 661   | 0.27 ms*  |
+| Target RPS | Delivered RPS | % target | p50     | p95      | p99    | fail %  | CPU delta (ms/60s) | **% 1 core** | % VM (2 core) | CPU / req |
+|-----------:|--------------:|---------:|--------:|---------:|-------:|--------:|-------------------:|-------------:|--------------:|----------:|
+|       25   |        22.9   |    92%   |  138 ms |   215 ms |   4 s  |   7.11% |            1 673   |      **2.8 %** |        1.4 %  | 1.11 ms   |
+|       50   |        44.9   |    90%   |  134 ms |   206 ms | 397 ms |   7.85% |            2 068   |      **3.4 %** |        1.7 %  | 0.69 ms   |
+|      100   |        91.4   |    91%   |  126 ms |   190 ms | 3.39 s |   7.46% |            3 685   |      **6.1 %** |        3.1 %  | 0.61 ms   |
+|      200   |       177.4   |    89%   |  126 ms |   190 ms | 3.59 s |   7.99% |            7 027   |     **11.7 %** |        5.9 %  | 0.59 ms   |
+|      400   |       357.2   |    89%   |  125 ms |   189 ms | 3.98 s |   7.99% |           12 637   |     **21.1 %** |       10.5 %  | 0.53 ms   |
+|      800   |       710.4   |    89%   |  128 ms |   194 ms | 3.83 s |   8.05% |           25 031   |     **41.7 %** |       20.9 %  | 0.52 ms   |
+|     1 600  |     1 365.9   |    85%   |  483 ms |  1.58 s  | 3.93 s |  23.63% |           41 050   |     **68.4 %** |       34.2 %  | 0.43 ms*  |
+|     2 400  |     1 909.5   |    80%   |  419 ms |  1.54 s  | 3.64 s |  51.45% |           38 661   |     **64.4 %** |       32.2 %  | 0.27 ms*  |
 
-*Di 1600 dan 2400 RPS, banyak request ditolak cepat oleh nginx (504) sebelum
+**% 1 core** = kolom yang Anda bandingkan dengan angka `%CPU` di `top -p <pid>`
+(yang default-nya tampil per-core di Linux). Saturasi Node main thread =
+kolom ini mendekati 100 %. VM 2-core kita artinya kapasitas Node single-thread
+tercapai di ~50 % utilisasi total VM.
+
+*Di 1 600 dan 2 400 RPS, banyak request ditolak cepat oleh nginx (504) sebelum
 masuk ke Node, jadi CPU / req yang diukur di Node terlihat lebih rendah.
-CPU delta yang nyata sudah mendekati batas 1 core.
+Juga kenapa % 1 core di 2 400 (64 %) sedikit lebih rendah dari 1 600 (68 %):
+pekerjaan yang masuk Node berkurang karena ditahan di accept queue nginx.
 
 ### Interpretasi per range
 
@@ -241,9 +385,14 @@ p50 melonjak dari 128 → 483 ms (3,8×), p95 dari 194 ms → 1.58 s (8×).
 
 CPU delta dari [`metrics-before-1600.json`](../logs/samples/capacity/metrics-before-1600.json) `cpuUsage.userMs = 448220.68`
 → [`metrics-after-1600.json`](../logs/samples/capacity/metrics-after-1600.json) `cpuUsage.userMs = 489270.87`
-= **41 050 ms / 60 s = 68 % dari satu core**. Ekstrapolasi linier dari
-`0.55 ms / req × 1600 req/s = 880 ms/s CPU` = 88 % core. Dua angka
-ini bilang hal yang sama: **server mulai CPU-bound di sekitar sini.**
+= 41 050 ms dipakai dalam 60 s wall-clock = **68 % dari 1 core** (atau
+34 % dari VM 2-core kalau Anda baca dari `top`/`htop` mode aggregate).
+
+Ekstrapolasi linier dari biaya per-request di region flat
+(`0.55 ms / req × 1600 req/s = 880 ms/s CPU = 88 % core`) sejalan: server
+mulai CPU-bound di sekitar sini. **Jangan lupa: ini % dari 1 core, bukan
+% dari VM**; Node main thread tidak bisa lebih dari 1 core karena JS
+single-threaded.
 
 **2 400 RPS — collapse**
 
@@ -297,6 +446,118 @@ itu dan akan memberi angka terlalu optimis.
 Selama seluruh tes, `rssMb` hanya bergerak dari 311 MB → 318 MB (< 2 %).
 Tidak ada indikasi leak. Ini expected: retensi OFF, logging pakai pino
 yang append ke file tanpa buffering dalam heap.
+
+## Dari 800 RPS ke 5 000 RPS — bisa diekstrapolasi?
+
+Skenario realistis: hasil benchmark bilang kapasitas saat ini **800 RPS
+SLO-safe**. Lalu manajemen / product bilang traffic akan naik ke
+**5 000 RPS** setelah kampanye besar. Apakah Anda bisa langsung hitung
+spec server yang dibutuhkan dari angka benchmark?
+
+**Jawaban singkat**: bisa, tapi hanya sebagai **estimasi awal** —
+ekstrapolasi linier hanya valid di kondisi tertentu, dan harus divalidasi
+ulang dengan benchmark di scale baru.
+
+### Hitungan kasar (first pass)
+
+Dari data benchmark ini:
+
+- 1 replica Node @ 2-core VM → SLO-safe **800 RPS**
+- Operasional aman (70 %) → **560 RPS per replica**
+
+Untuk 5 000 RPS sustained:
+
+```
+replicas_butuh = target_rps / per_replica_operasional
+              = 5000 / 560
+              ≈ 9 replicas
+```
+
+Tambah **redundancy N + 1** (toleransi 1 replica mati tanpa breach SLO):
+→ **10 replicas minimum**.
+
+Tambah **spike headroom** (traffic puncak biasanya 1.3–1.5 × sustained):
+→ **13–15 replicas**.
+
+### Vertical vs horizontal scaling — untuk Node
+
+Node single-threaded untuk JS. Satu proses Node **tidak bisa pakai lebih
+dari 1 core** untuk event loop-nya. Implikasinya untuk scaling:
+
+| Strategi       | Cara                                          | Kapan cocok                                  |
+|----------------|-----------------------------------------------|----------------------------------------------|
+| Horizontal     | Lebih banyak VM / container, load balancer    | Default untuk Node. Gampang, resilient.      |
+| Vertikal (box) | CPU box lebih gede (8 core) + `cluster` / PM2 | Kalau shared memory antar worker dibutuhkan  |
+| Vertikal (CPU) | CPU per-core lebih cepat (beda generasi)      | Rarely available di cloud; limited upside    |
+
+Untuk aplikasi ini (stateless, tidak butuh sesi antar request),
+**horizontal scaling** adalah jawaban standar. 10 × VM 2-core jauh lebih
+murah dan lebih tahan daripada 1 × VM 20-core.
+
+### Yang bisa membuat ekstrapolasi linier GAGAL
+
+Berikut daftar asumsi yang "tersembunyi" di rumus di atas. Kalau salah
+satu tidak benar, hitungan kasar tidak valid:
+
+1. **Bottleneck tetap di event loop Node** — asumsi kita di benchmark ini.
+   Kalau di scale lebih besar bottleneck pindah ke DB / cache / upstream
+   bank, menambah replica Node tidak menolong.
+2. **Upstream punya kapasitas cukup** — bank API biasanya punya rate limit
+   per-client (mis. 500 TPS). Kalau benchmark kita pakai `sleep()` simulasi,
+   bank nyata akan jadi bottleneck jauh sebelum 5 000 RPS tercapai. **Harus
+   benchmark ulang dengan upstream real atau sandbox, bukan simulator.**
+3. **Database tidak jadi single point** — 10 replica Node yang semua hit
+   satu DB primary = DB jadi bottleneck. Biasanya butuh read replicas,
+   connection pool tuning, atau sharding.
+4. **Network bandwidth tidak saturasi** — 5 000 RPS × 200 bytes response
+   = 1 MB/s = ringan. Tapi kalau response 50 KB (laporan, PDF, dll.),
+   5 000 × 50 KB = 250 MB/s = 2 Gbps, bisa saturasi NIC VM kecil.
+5. **Load balancer tidak jadi bottleneck sendiri** — nginx / ALB punya
+   batas concurrent connections. Lihat `worker_connections` dan scaling
+   LB juga.
+6. **Logging disk I/O tidak jadi bottleneck** — 5 000 req/s × 3 log lines/req
+   × ~300 bytes = 4.5 MB/s tulisan disk. Di 10 replica jadi 45 MB/s ke
+   storage bersama. SSD OK, NFS lambat bisa jadi masalah.
+7. **Coordination overhead diabaikan** — health check, metric scrape,
+   service discovery, dll. overhead-nya konstan per-replica; di 10 replica
+   jadi 10× (biasanya masih kecil tapi tidak nol).
+8. **Workload yang di-benchmark = workload produksi** — kalau di produksi
+   `CREDIT_CARD` butuh 3× CPU dari `QRIS` dan distribusinya miring, biaya
+   per-request beda dari 0.55 ms yang kita ukur.
+
+### Re-benchmark ladder — cara jujur mendekati target
+
+Jangan loncat dari 1 replica ke 10 replica. Naikkan bertahap dan verifikasi
+kurva masih sehat di setiap step. Contoh ladder untuk target 5 000 RPS:
+
+| Step | Replicas | Target ramp RPS | Yang dikonfirmasi                              |
+|------|---------:|----------------:|-------------------------------------------------|
+| 1    |    1     |   100 → 1 000   | kurva baseline (apa yang sudah kita punya)      |
+| 2    |    2     |   200 → 2 000   | scaling linier? kapasitas ~2× step 1?           |
+| 3    |    4     |   500 → 3 000   | DB / upstream mulai keliatan? connection pool?  |
+| 4    |    8     | 1 000 → 5 000   | target produksi tercapai dengan headroom?       |
+| 5    |   10     | target ± spike  | N+1 redundancy (matikan 1 replica, cek ≤ SLO)  |
+
+Antara step 1 dan 2, kalau delivered RPS hanya 1.5× dari step 1 (bukan
+~2×), berarti ada bottleneck shared yang perlu dicari sebelum scale lebih
+jauh. Ini lebih murah daripada provisioning 10 replica dan baru tahu DB
+bottleneck di hari-H.
+
+### Ringkasan untuk stakeholder
+
+Jawaban "berapa spec untuk 5 000 RPS" yang sehat:
+
+> "Benchmark saat ini di 1 replica 2-core menunjukkan SLO-safe 800 RPS.
+> First-pass estimate untuk 5 000 RPS: **10 replica 2-core** (untuk
+> redundancy + spike). Tapi angka ini **hanya valid kalau DB, upstream
+> bank, dan load balancer juga skalabel**. Sebelum commit ke capacity ini,
+> butuh benchmark bertahap di 2 / 4 / 8 replica untuk memastikan kurva
+> latency masih linier dan tidak ada bottleneck lain yang muncul."
+
+Jawaban "boleh gak kita pakai 1 VM 16-core?" — bisa (dengan `cluster`
+module menjalankan 8 worker Node), tapi hilang redundancy: 1 kernel panic
+= 100 % traffic hilang. Pada skala 5 000 RPS, horizontal scale lebih
+tahan.
 
 ## Yang tidak ditangkap oleh tes ini
 
