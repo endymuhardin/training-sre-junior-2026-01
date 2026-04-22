@@ -257,7 +257,29 @@ k6 run loadtest/k6-stress.js
 k6 run loadtest/k6-soak.js
 ```
 
-Override target URL saat menghantam server remote:
+### Menjalankan ke server (remote)
+
+Semua script menerima env var `BASE_URL`. Kalau aplikasi sudah di-deploy lewat
+Ansible, nginx meng-proxy `/api/*` ke `127.0.0.1:3000`, jadi cukup pakai port 80:
+
+```bash
+# ganti 10.0.120.6 dengan IP / hostname server training Anda
+BASE_URL=http://10.0.120.6 k6 run loadtest/k6-baseline.js
+BASE_URL=http://10.0.120.6 k6 run loadtest/k6-stress.js
+BASE_URL=http://10.0.120.6 k6 run loadtest/k6-soak.js
+```
+
+Sebelum menjalankan, pastikan:
+
+- Laptop Anda punya route ke IP server (RFC1918 10.x.x.x biasanya hanya
+  reachable lewat VPN — tes dulu dengan `curl http://<ip>/api/health`).
+- Admin endpoint (`/api/admin/*`) terbuka dari laptop Anda. Script `k6-stress`
+  dan `k6-soak` memanggil `PUT /api/admin/config/cpu` / `.../memory` di
+  `setup()`; kalau IP Anda tidak di-allow oleh nginx / firewall, `setup()` akan
+  gagal dan skenario CPU/memori tidak akan aktif walau traffic tetap jalan.
+- Service sedang aktif: `ssh <user>@<ip> 'systemctl is-active payment-gateway'`.
+
+Contoh run cepat (dari laptop → server `10.0.120.6`, 4 menit, 20 VU):
 
 ```bash
 BASE_URL=http://10.0.120.6 k6 run loadtest/k6-baseline.js
@@ -297,6 +319,12 @@ Ekspektasi: %CPU naik hingga ~100% dari satu core (JS di Node itu single-threade
 Latency request meningkat karena `burnCpu()` memblokir event loop; field
 `cpuBurnMs` di log record menunjukkan berapa ms yang dihabiskan murni untuk hashing.
 
+Untuk server remote, jalankan `top`/`ps` lewat ssh. **Catatan**: di fase
+puncak stress test, admin endpoint `/api/admin/metrics` bisa ikut timeout
+karena memakai event loop yang sama — polling lewat `ssh ... 'top -bn1'`
+tetap jalan selama kernel OS masih punya slot CPU (ini pun bisa melambat
+kalau kedua core sudah 100% seperti VM training).
+
 ### Memori (run soak)
 
 Sementara `k6-soak.js` berjalan, polling endpoint metrics atau `ps`:
@@ -309,13 +337,27 @@ watch -n 5 'curl -s http://localhost:3000/api/admin/metrics | jq'
 watch -n 5 'ps -p $(pgrep -f "node src/app.js") -o pid,%mem,rss,vsz'
 ```
 
-Ekspektasi: `retainedRecords` tumbuh ~40-60/detik (40 VU × ~5 req/detik per VU,
-semuanya ditangkap selama retensi aktif). `rssMb` dan `heapUsedMb` tumbuh
-linier. Picu recovery di tengah run untuk melihat RSS turun:
+Ekspektasi (observasi nyata di server training 2-core / 7.5 GB RAM):
+
+- Throughput ≈ 2.5 req/s per VU (iterasi ~330 ms, 0.2 s sleep). Jadi 30 VU →
+  ~75 req/s, 40 VU → ~100 req/s.
+- Retensi menangkap **semua** request (sukses + gagal) selama `retainRecords=true`,
+  bukan hanya sukses.
+- `payloadKb` menentukan kecepatan pertumbuhan: 8 KB × 75 req/s ≈ 36 MB/menit;
+  16 KB × 100 req/s ≈ 96 MB/menit.
+- `rssMb` tumbuh linier seiring `arrayBuffersMb` (buffer dummy di luar V8 heap).
+  `heapUsedMb` relatif stabil karena V8 sering menggarbage-collect objek kecilnya.
+
+Picu recovery di tengah run untuk melihat RSS turun:
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/memory/clear
 ```
+
+`retainedRecords` langsung jadi 0 setelah clear, tapi `rssMb` dan
+`arrayBuffersMb` tidak instant drop — V8 baru menyusutkan heap di siklus GC
+berikutnya (detik–menit). Kalau butuh observasi cepat, trigger GC paksa
+dengan `node --expose-gc` + `global.gc()` via admin endpoint (tidak default).
 
 ### Event-loop lag (bonus)
 
@@ -326,6 +368,165 @@ saja untuk flamegraph, atau pakai profiler bawaan:
 node --inspect src/app.js
 # lalu buka chrome://inspect di Chrome dan attach profiler
 ```
+
+## Analisis hasil load test
+
+Setelah k6 selesai, Anda punya dua sumber data:
+
+1. **Sisi klien (k6 summary)** — throughput, p95/p99, error rate dari perspektif
+   user. Dipengaruhi network latency + antrian di server.
+2. **Sisi server (log aplikasi)** — RC per transaksi, `bankLatencyMs`,
+   `cpuBurnMs`, `totalLatencyMs`. Murni latency aplikasi, tidak terpengaruh
+   network.
+
+Korelasikan keduanya untuk memisahkan masalah jaringan vs masalah aplikasi.
+
+### Lokasi log di server
+
+Saat dideploy lewat Ansible:
+
+| Path                                        | Isi                            |
+|---------------------------------------------|--------------------------------|
+| `/var/log/payment-gateway/payment-app.log`  | app log (JSON per baris), file-owned root |
+| `journalctl -u payment-gateway`             | mirror stdout → systemd journal |
+
+Contoh pengambilan log dari server ke laptop untuk dianalisis lokal:
+
+```bash
+ssh azureuser@10.0.120.6 'sudo cat /var/log/payment-gateway/payment-app.log' > /tmp/pg.log
+wc -l /tmp/pg.log
+```
+
+Semua contoh `jq` di bawah mengasumsikan file `/tmp/pg.log`. Ganti dengan
+`logs/payment-app.log` kalau Anda menjalankan app lokal, atau pipe langsung
+dari `ssh ... 'sudo cat ...'`.
+
+### Recipe jq
+
+```bash
+# Jumlah request per response code
+jq -r 'select(.logger=="PaymentService" and .rc) | .rc' /tmp/pg.log \
+  | sort | uniq -c | sort -rn
+
+# Success rate observasi vs konfigurasi (harus dekat dengan simulation.successRate)
+jq -r 'select(.logger=="PaymentService" and .rc) | .rc' /tmp/pg.log \
+  | awk '{t++; if ($0=="00") s++} END {printf "success=%d/%d = %.2f%%\n", s, t, s*100/t}'
+
+# Persentil latency total (p50 / p95 / p99 / max)
+jq -r 'select(.logger=="PaymentService" and .totalLatencyMs) | .totalLatencyMs' /tmp/pg.log \
+  | sort -n | awk 'BEGIN{c=0} {a[c++]=$1} END{
+      printf "count=%d p50=%d p95=%d p99=%d max=%d\n",
+        c, a[int(c*0.5)], a[int(c*0.95)], a[int(c*0.99)], a[c-1]}'
+
+# Breakdown latency per RC (count, mean, p95) — cek apakah RC 68 muncul di ekor.
+# Butuh `datamash` (brew install datamash / dnf install datamash).
+jq -r 'select(.logger=="PaymentService" and .rc and .totalLatencyMs)
+       | "\(.rc)\t\(.totalLatencyMs)"' /tmp/pg.log \
+  | sort | datamash -g 1 count 2 mean 2 perc:95 2
+
+# Error rate per method — deteksi kalau satu method (mis. CREDIT_CARD) lebih sering gagal
+jq -r 'select(.logger=="PaymentService" and .status)
+       | "\(.method) \(.status)"' /tmp/pg.log \
+  | awk '{t[$1]++; if ($2!="SUCCESS") f[$1]++} END {
+      for (m in t) printf "%-12s %5d req, %5d fail, %.1f%% fail rate\n", m, t[m], f[m]+0, (f[m]+0)*100/t[m]}' \
+  | sort
+
+# Jejak lengkap satu transaksi berdasarkan traceId (untuk incident postmortem)
+jq -c 'select(.traceId=="bf9c67fceff5f40b")' /tmp/pg.log
+
+# Jendela-waktu 1 menit — request per detik dari waktu ke waktu
+jq -r 'select(.logger=="PaymentService" and .msg=="payment request received")
+       | .time[0:19]' /tmp/pg.log \
+  | sort | uniq -c | awk '{print $2, $1}'
+
+# Hitung berapa request yang melewati jalur CPU-intensive (field cpuBurnMs > 0)
+jq -r 'select(.logger=="PaymentService" and .cpuBurnMs and .cpuBurnMs > 0)
+       | .cpuBurnMs' /tmp/pg.log | wc -l
+
+# Mean / max cpuBurnMs (kalau k6-stress dijalankan)
+jq -r 'select(.cpuBurnMs and .cpuBurnMs > 0) | .cpuBurnMs' /tmp/pg.log \
+  | awk '{s+=$1; if ($1>m) m=$1} END {printf "n=%d mean=%.1f max=%d\n", NR, s/NR, m}'
+```
+
+### Korelasi k6 ↔ server
+
+| Pertanyaan yang bagus                                              | Bandingkan                                                      |
+|--------------------------------------------------------------------|-----------------------------------------------------------------|
+| "Apakah error rate yang dilihat user sama dengan simulator?"        | k6 `http_req_failed` vs `jq` success-rate observasi             |
+| "Apakah latency user tinggi karena network atau karena app?"        | k6 `http_req_duration` p95 vs app-log `totalLatencyMs` p95      |
+| "Saat stress test, berapa ms CPU burn nyangkut di tail latency?"    | `cpuBurnMs` mean vs `totalLatencyMs - bankLatencyMs - cpuBurnMs` |
+| "Saat soak test, seberapa cepat memori bocor?"                      | `/api/admin/metrics` `rssMb` polling 5s vs `retainedRecords`    |
+
+### Hasil observasi aktual (server training 2-core / 7.5 GB / Node 22)
+
+Angka-angka di bawah direkam saat validasi, untuk kalibrasi ekspektasi.
+
+**Baseline — `k6 run loadtest/k6-baseline.js`** (4 menit, 20 VU max)
+
+| Metrik                                | Nilai                                    |
+|---------------------------------------|------------------------------------------|
+| k6 throughput                         | 39.2 req/s (9422 iterations)             |
+| k6 `http_req_duration` p50 / p95      | 131 ms / 200 ms                          |
+| k6 `http_req_failed`                  | 7.77%                                    |
+| App log `totalLatencyMs` p50 / p95 / p99 / max | 111 / 175 / 3930 / 7984 ms      |
+| Success rate observasi                | 92.2% (8751/9491) — cocok dengan `successRate: 0.92` |
+| Distribusi RC error (51/55/61/68/96/05) | 35/18/16/16/9/6% — cocok dengan bobot konfigurasi |
+
+**Stress — `k6 run loadtest/k6-stress.js`** (5 min, 300 VU peak, CPU hashRounds=200000, probability=0.5)
+
+| Metrik                                | Nilai                                    |
+|---------------------------------------|------------------------------------------|
+| k6 throughput                         | 7.27 req/s (anjlok dari 39 → 7 karena antrian) |
+| k6 `http_req_duration` p50 / p95 / max | 27 s / 30 s / 30.12 s (threshold p95<5s DILANGGAR) |
+| k6 `http_req_failed`                  | 44.96% — mayoritas 504 Gateway Timeout dari nginx |
+| App log `totalLatencyMs` p50 / p95    | 353 / 528 ms (jauh lebih rendah dari k6) |
+| `cpuBurnMs` mean / max                | 243 / 363 ms per request yang terpicu    |
+| Total CPU time saat tes               | +380 s `process.cpuUsage().user` untuk 5 menit wall-clock |
+| Admin endpoint (`/api/admin/*`)       | **Tidak responsif** selama ~4.5 menit — event loop tersumbat |
+| SSH ke server                         | Juga timeout 3s selama fase puncak (kedua core di ~100%) |
+
+*Catatan*: gap besar antara k6 p95 (30s) dan app-log p95 (528ms) adalah
+**antrian di nginx/accept-queue**. Request menunggu 25–30 detik sebelum
+event loop sempat menerimanya; setelah diterima, pemrosesan sendiri "hanya"
+~500 ms. Ini pola khas saturasi event loop di Node.
+
+**Soak — `BASE_URL=... SOAK_DURATION=5m SOAK_VUS=30 MEMORY_PAYLOAD_KB=8 k6 run loadtest/k6-soak.js`**
+
+| Metrik                                | Nilai                                    |
+|---------------------------------------|------------------------------------------|
+| k6 throughput                         | 75.2 req/s (23013 iterations)            |
+| k6 `http_req_duration` p50 / p95      | 129 / 194 ms — seperti baseline (tidak ada CPU burn) |
+| `retainedRecords` growth              | ~76/s → 1273 @ 16s, 21377 @ 4 menit, 23013 total |
+| `arrayBuffersMb` growth               | 10 MB → 167 MB (growth ~0.6 MB/s, = 76 rec × 8 KB) |
+| `rssMb` growth                        | 145 MB → 301 MB (≈ selaras dengan arrayBuffers) |
+| `heapUsedMb`                          | 13–30 MB (stabil — object record kecil di-GC reguler) |
+| Post-teardown (`memory/clear`)        | retained=0 langsung, rss turun 301→277 MB (24 MB), arrayBuf 167→180 MB (belum GC) |
+
+*Peringatan*: default di `k6-soak.js` adalah **15 menit × 40 VU × 16 KB payload**,
+yang memproyeksikan ~3 GB retensi. VM training 7.5 GB tanpa swap bisa OOM.
+Turunkan ke angka-angka di atas kalau batasan RAM ketat, atau monitor dengan
+`watch free -h` paralel.
+
+### Gotcha yang umum
+
+- **Stress test teardown bisa gagal** — saat ramp-down, event loop mungkin masih
+  sibuk memproses antrian CPU-burn yang tertahan. Call `PUT /admin/config/cpu`
+  dari `teardown()` bisa balas 504 Gateway Timeout. Kalau Anda lihat k6
+  mengeluh di fase akhir, verifikasi: `curl .../admin/config | jq .cpu` —
+  kalau `enabled: true`, reset manual.
+- **Log masih muncul setelah k6 selesai** — karena baseline `setup()`/
+  `teardown()` tidak menyentuh admin API, tapi stress & soak iya. Kalau Anda
+  men-`ctrl+c` k6 di tengah, `teardown()` tidak jalan — state CPU / memory
+  retention tetap `enabled`. Reset manual: `curl -X PUT .../admin/config/cpu -d '{"enabled":false}'`.
+- **jq lambat di log besar** — `jq` membaca satu objek per saat. Di log >1 GB,
+  filter dulu dengan `grep -F '"PaymentService"'` sebelum `jq`, atau pakai
+  `gojq`.
+- **Clock skew** — `time` di log pakai UTC isoformat. Kalau korelasi dengan
+  log nginx (yang mungkin pakai timezone lokal), konversi dulu. `date -u` di
+  laptop membantu.
+- **`ssh` saat stress** — kalau SSH sendiri timeout selama stress test, itu
+  bukan bug jaringan: kedua core server sedang 100%, kernel pun lambat
+  respons. Tunggu test selesai atau turunkan `CPU_HASH_ROUNDS`.
 
 ## Skenario latihan analisis log
 
