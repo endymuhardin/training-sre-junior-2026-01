@@ -518,6 +518,200 @@ Manfaat: saat CVE baru rilis (misal CVE berikutnya pada `libxml2`), kamu bisa qu
 | Kyverno / OPA Gatekeeper | Admission control Kubernetes |
 | Harbor | Registry dengan scan + signing built-in |
 
+---
+
+## Bagian 4: CVE Database & Vulnerability Monitoring
+
+Hardening, supply chain, dan image security semuanya bergantung pada satu asumsi: kita **tahu** CVE apa yang terkait dengan stack kita. CVE baru publish setiap hari — scan yang bersih kemarin bisa menampilkan critical hari ini tanpa ada perubahan kode apapun. Karena itu *vulnerability monitoring* adalah proses berkelanjutan, bukan checkpoint satu kali.
+
+### Kenapa Periksa Berkala
+
+- **CVE terbit kontinu.** NVD biasanya publish ~60–100 CVE per hari.
+- **Patch window sempit.** CISA KEV dan banyak regulasi (PCI-DSS, ISO 27001) menuntut patch critical dalam 7–30 hari sejak disclosure.
+- **CVE bisa muncul di library yang tidak diupdate.** Dependency yang 2 tahun tidak berubah bisa mendadak jadi titik serang.
+- **Scanner database tertinggal.** Database CVE di Trivy, Grype, Snyk di-update dari sumber upstream — delay 24–72 jam bukan hal aneh. Scan pakai DB kemarin = blind spot hari ini.
+- **Zero-day ke N-day.** Saat eksploitasi publik dirilis (ExploitDB, Metasploit module), window untuk patch menyempit drastis.
+
+### Database CVE Publik
+
+#### A. Sumber Otoritatif Umum
+
+| Database | URL | Cakupan |
+|---|---|---|
+| MITRE CVE | https://www.cve.org | Registrar resmi CVE ID (CNA). Sumber utama nomor CVE. |
+| NVD (NIST) | https://nvd.nist.gov | Enrichment MITRE CVE dengan CVSS, CPE, CWE. Paling banyak dipakai scanner. |
+| OSV | https://osv.dev | Open Source Vulnerabilities, format terstandarisasi, dari Google. Multi-ekosistem. |
+| CISA KEV | https://www.cisa.gov/known-exploited-vulnerabilities-catalog | Known Exploited Vulnerabilities — CVE yang **terbukti** dieksploitasi di dunia nyata. Prioritas tertinggi. |
+| EPSS | https://www.first.org/epss | Exploit Prediction Scoring System — probabilitas CVE akan dieksploitasi dalam 30 hari. |
+| VulDB | https://vuldb.com | Database komersial dengan timeline exploit. |
+
+#### B. Ecosystem / Language Specific
+
+| Database | Ekosistem |
+|---|---|
+| GitHub Advisory Database (GHSA) | Multi-ekosistem (npm, Maven, Go, PyPI, RubyGems, Composer, NuGet, Pub, Rust, Erlang, Swift, Elixir). Feed paling aktif untuk OSS. |
+| npm Advisory | Node.js (sekarang bergabung ke GHSA). |
+| PyPA Advisory Database | Python — https://github.com/pypa/advisory-database |
+| Go Vulnerability Database | Go — https://pkg.go.dev/vuln, di-sync ke `govulncheck`. |
+| RustSec | Rust crates — https://rustsec.org |
+| Maven Central Security (Sonatype OSS Index) | Java/Maven — https://ossindex.sonatype.org |
+| Ruby Advisory DB | Ruby gems |
+| Packagist Security Advisories | PHP Composer |
+
+#### C. Distro / OS Advisories
+
+| Distro | Advisory |
+|---|---|
+| Red Hat / Rocky / Alma | RHSA — https://access.redhat.com/security/security-updates |
+| Debian | DSA — https://www.debian.org/security/ |
+| Ubuntu | USN — https://ubuntu.com/security/notices |
+| SUSE | SUSE-SU — https://www.suse.com/support/update/ |
+| Alpine | https://security.alpinelinux.org |
+| Amazon Linux | ALAS — https://alas.aws.amazon.com |
+| Oracle Linux | ELSA — https://linux.oracle.com/security/ |
+
+Distro advisory penting karena satu CVE upstream bisa di-*backport* oleh distro, sehingga versi paket terlihat "lama" tapi sebetulnya sudah dipatch. Scanner yang hanya baca NVD tanpa data distro akan false-positive.
+
+#### D. Vendor / Product Advisories
+
+| Vendor | Feed |
+|---|---|
+| Oracle | Critical Patch Update (CPU) — tiap kuartal |
+| Microsoft MSRC | Patch Tuesday, Security Update Guide |
+| Cisco PSIRT | advisories tertanda SIR (Security Impact Rating) |
+| VMware | VMSA |
+| Atlassian | advisory per produk (Confluence, Jira, Bitbucket) |
+| PostgreSQL | https://www.postgresql.org/support/security/ |
+| Nginx | https://nginx.org/en/security_advisories.html |
+| OpenSSL | https://www.openssl.org/news/vulnerabilities.html |
+| Kubernetes | kubernetes-security-announce mailing list |
+
+#### E. Exploit Intelligence
+
+| Sumber | Fungsi |
+|---|---|
+| ExploitDB | PoC exploit publik — https://www.exploit-db.com |
+| Metasploit Modules | Exploit terintegrasi ke framework — https://github.com/rapid7/metasploit-framework |
+| Packet Storm | Exploit, advisory, tool |
+| GitHub (search "CVE-YYYY-NNNNN") | PoC sering diunggah peneliti |
+| Nuclei Templates | Template scanning untuk CVE/config — https://github.com/projectdiscovery/nuclei-templates |
+
+### Ritme Pengecekan yang Realistis
+
+| Frekuensi | Aktivitas |
+|---|---|
+| Real-time / event-driven | Webhook dari GitHub Advisory, Snyk, Dependabot, CISA KEV update |
+| Harian | Re-scan image di registry, re-scan SBOM terhadap DB terbaru |
+| Mingguan | Review semua alert, prioritisasi ulang berdasarkan KEV/EPSS |
+| Bulanan | Audit SBOM coverage, verifikasi DB scanner up-to-date, review EOL library |
+| Tiap rilis distro | Review perubahan support lifecycle (EOL tanggal patch berakhir) |
+
+### Tools Otomasi Vulnerability Monitoring
+
+#### A. SBOM-Driven Continuous Monitoring
+
+Pendekatan modern: generate SBOM sekali per artifact, lalu **monitor SBOM** secara kontinu terhadap database CVE. Kalau CVE baru muncul yang match komponen di SBOM → alert. Tidak perlu re-build atau re-scan image.
+
+| Tool | Ekosistem | Catatan |
+|---|---|---|
+| **OWASP Dependency-Track** | Multi | Open source, simpan SBOM, continuous analysis vs NVD/OSS Index/GHSA/OSV/Snyk/VulnDB. Notifikasi Slack/Teams/webhook/Jira. Paling populer untuk self-hosted. |
+| **Anchore Enterprise / syft+grype watch** | Container | Anchore bisa *watch* image di registry dan kirim alert saat DB update memunculkan CVE baru. |
+| **Snyk** | Multi | Continuous monitoring built-in, auto-fix PR. |
+| **Socket** | npm, PyPI, Go | Fokus *behavioral* + CVE; alert saat dep menarik paket baru mencurigakan. |
+| **GitHub Dependabot Alerts + Security Updates** | Multi | Gratis di GitHub, baca GHSA, buat PR upgrade otomatis. |
+| **Renovate** | Multi | Fokus update; kombinasikan dengan OSV Scanner untuk filter vuln. |
+| **JFrog Xray** | Multi + container | Terintegrasi Artifactory, continuous scan di registry. |
+
+#### B. Host / OS / Kernel Vulnerability
+
+| Tool | Catatan |
+|---|---|
+| **Vuls** | Agentless Linux scanner, baca package manager + OVAL dari distro. Laporkan CVE per host. Open source. |
+| **OpenSCAP + oscap** | Scan host terhadap OVAL/SCAP content, memberi compliance + vuln report. |
+| **Wazuh** | SIEM open source dengan modul vulnerability detection, FIM, log correlation. |
+| **Tenable Nessus / Qualys VMDR / Rapid7 InsightVM** | Scanner komersial dengan database CVE terupdate dan prioritisasi. |
+| **Lynis** | Audit hardening; bukan vuln scanner murni tapi memberi petunjuk package out-of-date. |
+
+#### C. Container Image Watch
+
+| Tool | Cara Kerja |
+|---|---|
+| **Trivy server mode** (`trivy server` + `trivy client`) | DB terpusat, client scan periodik. Bisa dipadukan dengan cron + alerting. |
+| **Grype + Syft + GitHub Actions schedule** | Scheduled job scan ulang SBOM attestation image di registry. |
+| **Harbor vulnerability scan + webhook** | Registry scan ulang otomatis + trigger webhook ke sistem alert. |
+| **Docker Scout** | `docker scout cves` + `docker scout recommendations`, policy berbasis base image. |
+| **Quay Security Scanner (Clair)** | Built-in untuk Red Hat Quay registry. |
+
+#### D. Kubernetes Workload
+
+| Tool | Fungsi |
+|---|---|
+| **Kubescape** | Scan cluster + image + IaC terhadap NSA/CISA Kubernetes Hardening Guidance, MITRE ATT&CK. |
+| **Starboard / Trivy Operator** | Trivy yang jalan sebagai operator Kubernetes, scan ulang image workload berkala, simpan `VulnerabilityReport` CRD. |
+| **Falco** | Runtime threat detection, bukan CVE scanner murni tapi menutup gap post-exploitation. |
+
+#### E. Web / API / Protocol Scanning
+
+| Tool | Fungsi |
+|---|---|
+| **Nuclei** | Template-based scanning, ribuan template CVE publik. Bisa dijalankan harian untuk cek asset publik. |
+| **OWASP ZAP** | DAST, scheduled scan terhadap staging. |
+| **Nmap + vulners NSE script** | Discovery + CVE lookup berbasis banner. |
+
+#### F. Feed Aggregator & Alerting
+
+| Tool | Fungsi |
+|---|---|
+| **opencve.io** | Subscribe ke vendor/product/keyword, dapat email saat CVE baru match. Bisa self-host. |
+| **vulert.com** | Monitor manifest (pom.xml, package.json, go.mod) dan kirim alert. |
+| **CISA KEV RSS / JSON feed** | Polling harian — kalau ada komponen stack di KEV, eskalasi prioritas. |
+| **NVD JSON/RSS feed** | Raw feed NVD, bisa di-*pipe* ke script sendiri. |
+| **osv-scanner** | CLI dari Google, scan manifest/SBOM/lockfile terhadap OSV. Cocok untuk cron. |
+| **govulncheck** | CLI resmi Go, analisa *call graph* — hanya report CVE yang benar-benar terpanggil kode kamu. |
+
+### Contoh Otomasi Ringan (Daily Cron)
+
+Skenario: kita punya SBOM CycloneDX di object storage, ingin alert harian ke Slack bila ada CVE baru.
+
+```
+1. Cron 06:00 — download semua SBOM artifact dari S3.
+2. Jalankan: trivy sbom --severity CRITICAL,HIGH <sbom.json>
+   (Trivy akan auto-update DB sebelum scan.)
+3. Diff hasil hari ini vs hasil kemarin (simpan di state file).
+4. Kalau ada CVE baru:
+   a. Lookup di CISA KEV → kalau match, prioritas P0.
+   b. Lookup EPSS score → >0.5 = prioritas P1.
+   c. Kirim ke Slack webhook dengan komponen, versi, CVE, link advisory.
+5. Update state file.
+```
+
+Setara untuk Dependency-Track: cukup upload SBOM sekali, platform akan otomatis menjalankan continuous analysis setiap DB mirror-nya update dan mengirim notifikasi via integrasi yang disetel.
+
+### Prioritisasi CVE — Jangan Patch Semua Sekaligus
+
+Satu host/image bisa punya puluhan-ratusan CVE "CRITICAL" menurut CVSS. Kalau kita patch urut CVSS saja, kita akan kelelahan dan melewatkan yang benar-benar berbahaya. Urutan prioritas yang lebih waras:
+
+1. **CISA KEV match** — bukti eksploitasi aktif. Patch sekarang.
+2. **EPSS > 0.5 + akses publik** — kemungkinan tinggi dieksploitasi.
+3. **CVSS ≥ 9.0 + reachable dari internet**.
+4. **CVSS ≥ 7.0 + berada di *call path* aplikasi** (pakai `govulncheck` untuk Go, tools reachability untuk bahasa lain bila tersedia).
+5. **CVSS ≥ 7.0 di library yang terbundle tapi tidak terpanggil** — patch terjadwal.
+6. **Low/Medium** — masuk backlog, batch per sprint.
+
+`--ignore-unfixed` di Trivy membantu memfilter noise: CVE yang belum ada fix upstream tidak bisa diselesaikan dengan upgrade apapun — pantau, jangan patch-spam.
+
+### Checklist Operasional
+
+- [ ] Setiap artifact yang dibuat punya SBOM yang tersimpan dan ter-*attached*.
+- [ ] SBOM di-*feed* ke sistem continuous monitoring (Dependency-Track atau setara).
+- [ ] Notifikasi CVE baru masuk ke channel yang dipantau (Slack/email/ticket), bukan hanya dashboard.
+- [ ] Ada SLA patch berdasarkan tier (P0 = 24h, P1 = 7d, P2 = 30d, P3 = sprint berikutnya).
+- [ ] Subscribe RSS/mailing list vendor untuk stack utama (PostgreSQL, Nginx, OpenSSL, Kubernetes, JDK).
+- [ ] Subscribe CISA KEV update.
+- [ ] DB scanner di CI runner di-*update* tiap build (`trivy image --download-db-only` di pipeline init).
+- [ ] Review CVE laporan tiap minggu — backlog yang ditinggal akan jadi technical debt keamanan.
+- [ ] Audit SBOM coverage tiap kuartal — aplikasi yang dibuild di luar proses standar sering tidak punya SBOM = blind spot.
+
 ### Bacaan Lanjutan
 
 - SLSA Framework: https://slsa.dev
@@ -529,3 +723,7 @@ Manfaat: saat CVE baru rilis (misal CVE berikutnya pada `libxml2`), kamu bisa qu
 - NIST SP 800-190 Application Container Security Guide: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-190.pdf
 - Distroless images: https://github.com/GoogleContainerTools/distroless
 - Chainguard Images: https://images.chainguard.dev
+- OWASP Dependency-Track: https://dependencytrack.org
+- CISA KEV Catalog: https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+- FIRST EPSS: https://www.first.org/epss
+- OSV Schema: https://ossf.github.io/osv-schema/
