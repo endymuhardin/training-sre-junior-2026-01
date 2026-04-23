@@ -1,39 +1,55 @@
-# Base Image. Gunakan node image, daripada merakit ulang nodejs dari nol
-# Pisahkan kegiatan build dengan image final yang akan dideliver
-# Tahap 1 : Download dependensi dan build app (compile jika aplikasi Java atau Golang)
-FROM node:24-alpine AS builder
+# Payment Gateway Simulator — image Docker untuk Express.js app.
+#
+# Pilihan single-stage: aplikasi Node.js di sini TIDAK punya compile step
+# (JS di-ship as-is). Multi-stage hanya memberi nilai tambah kalau ada
+# langkah build yang output-nya perlu dipisahkan dari runtime (mis.
+# TypeScript → JS, atau Go source → binary — lihat sample-apps/hello-db/
+# untuk contoh multi-stage yang tepat). Untuk Node-only app tanpa
+# compile, single-stage lebih jujur dan lebih simple.
+#
+# Node 24 LTS (Krypton) — LTS terbaru yang masih supported per April 2026.
+# Node 20 sudah EOL (2026-03-24). Lihat schedule resmi di:
+# https://nodejs.org/en/about/previous-releases
 
-# Aplikasi diinstal di folder /app dalam container
-WORKDIR /app
-
-# Copy package.json yang berisi daftar library
-COPY package*.json ./
-
-# Download library yang disebutkan dalam package.json 
-RUN npm ci
-
-# Copy isi current folder di laptop (titik pertama) 
-# ke current folder dalam container (titik kedua)
-COPY . .
-
-
-# Tahap 2: Image yang akan menjalankan aplikasi
 FROM node:24-alpine
 
-# Optional, kalau kita ada perbedaan config antara dev vs prod
+# Label metadata statis. Label dinamis (version, revision, source) di-inject
+# oleh `docker/metadata-action` di workflow CI — tidak perlu hardcode di sini.
+LABEL org.opencontainers.image.title="Payment Gateway Simulator" \
+      org.opencontainers.image.description="Express.js + pino payment gateway simulator untuk training SRE" \
+      org.opencontainers.image.licenses="MIT"
+
 ENV NODE_ENV=production
 
 WORKDIR /app
 
-# Salin hanya file yang dibutuhkan dari tahap builder
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app .
+# Install dependency duluan — layer ini ter-cache selama package*.json
+# tidak berubah, sehingga edit di src/ tidak memicu re-download.
+# --omit=dev skip devDependencies (kalau ada nanti: mocha, nodemon, dll.)
+# --chown=node:node supaya file dimiliki user non-root dari awal.
+COPY --chown=node:node package*.json ./
+RUN npm ci --omit=dev
 
-# Kita buat folder 'logs' secara manual dan berikan hak akses ke user 'node'
-RUN mkdir -p /app/logs && chown -R node:node /app
+# Salin hanya folder yang dibutuhkan runtime — bukan `COPY . .`.
+# Hindarkan .git/, logs/, node_modules/ lokal, db-aplikasi/, loadtest/,
+# logs/samples/ (436 KB sampel latihan) ikut ke image.
+# .dockerignore sudah memfilter, tapi COPY eksplisit per-folder = dua lapis proteksi.
+COPY --chown=node:node src ./src
+COPY --chown=node:node config ./config
 
-# Port aplikasi express biasanya 3000
+# Direktori log perlu dibuat manual supaya pino bisa menulis ke file
+# saat app start. mkdir + chown sekaligus di satu RUN supaya jadi satu layer.
+RUN mkdir -p /app/logs && chown node:node /app/logs
+
 EXPOSE 3000
 
 USER node
+
+# Healthcheck lewat node bawaan — tidak butuh install curl/wget tambahan.
+# /api/health tidak sentuh DB / dependency eksternal, cocok untuk liveness.
+# process.env.PG_PORT mirror config app: kalau port di-override via env,
+# healthcheck ikut port yang sama.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PG_PORT||3000)+'/api/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
 CMD ["node", "src/app.js"]

@@ -1,7 +1,48 @@
-node_modules
-npm-debug.log
-logs
+# File/folder yang tidak perlu masuk build context Docker.
+# Build context dikirim ke daemon saat `docker build` — makin kecil makin cepat.
+# Juga mencegah file sensitif atau artefak besar ikut ke image meskipun
+# `COPY` di Dockerfile sudah selektif (belt-and-suspenders).
+
+# Git
 .git
+.gitignore
+.gitattributes
+
+# Node runtime output — node_modules di-install di dalam image via npm ci
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime log output — regenerated di container, tidak perlu di-copy dari host
+logs
+
+# Data Postgres dari docker-compose (volume bind-mount lokal)
+db-aplikasi
+
+# Secret lokal
 .env
+.env.*
+
+# Dokumentasi — tidak dibutuhkan runtime
+*.md
+!src/**/*.md
+
+# Dockerfile sendiri + compose — tidak perlu di-copy ke image
+Dockerfile
+.dockerignore
+compose.yml
+docker-compose*.yml
+
+# Load test scripts — tidak dijalankan di dalam image
+loadtest
+
+# IDE / editor
+.vscode
+.idea
+*.swp
 .DS_Store
-README.md
+
+# Coverage / test output (kalau suatu saat ada)
+coverage
+.nyc_output
