@@ -17,12 +17,15 @@ Batch pertama program Training Junior SRE di tahun 2026.
 ### Hari 3 — Virtual Machines, Docker Basics & Alert Triaging
 - Konsep VM dan container
 - Docker fundamentals
+- Docker image security (lanjutan di Hari 4)
 - Alert triage dan incident response
 
 ### Hari 4 — Bash/Python Scripting & Basic Hardening
 - Bash scripting untuk SRE
 - Python untuk log parsing dan otomasi
 - Security hardening dasar
+- Supply chain security — case study Java, Node.js, Go
+- Materi: [`./materi-hardening-supply-chain.md`](./materi-hardening-supply-chain.md)
 
 ### Hari 5 — Redundancy, Testing & Incident Learning
 - High availability patterns
