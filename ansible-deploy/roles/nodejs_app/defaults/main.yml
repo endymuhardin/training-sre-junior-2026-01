@@ -9,9 +9,11 @@ pg_run_user: root
 pg_run_group: root
 
 # Versi major Node.js LTS yang dipasang dari repo NodeSource.
-# Ganti ke LTS aktif saat ini (genap), mis. 20, 22, 24.
+# Per April 2026: Node 20 EOL (2026-03-24), Node 22 & 24 keduanya
+# Maintenance LTS. Default pakai 24 (Krypton) sebagai LTS terbaru.
+# Cek schedule terbaru di: https://nodejs.org/en/about/previous-releases
 # Repo AppStream default RHEL/Rocky 9 masih di Node.js 16 yang sudah EOL.
-pg_nodejs_major: 22
+pg_nodejs_major: 24
 
 # User SSH yang dipakai GitHub Actions deploy workflow untuk rsync + restart.
 # Harus sama dengan secret DEPLOY_USER di GitHub repo settings.
