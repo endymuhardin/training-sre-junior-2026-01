@@ -27,6 +27,9 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 COPY --from=build /out/hello-db /hello-db
 
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD ["/hello-db", "-check"]
+
 # Jalan sebagai uid non-root (scratch tidak punya /etc/passwd, tapi kernel
 # tetap menghormati numeric uid/gid).
 USER 65534:65534

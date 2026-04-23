@@ -38,6 +38,24 @@ type Server struct {
 }
 
 func main() {
+	// health check
+	if len(os.Args) > 1 && os.Args[1] == "-check" {
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		req, _ := http.NewRequestWithContext(ctx, "GET", "http://127.0.0.1:"+port+"/health", nil)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(log)
 
