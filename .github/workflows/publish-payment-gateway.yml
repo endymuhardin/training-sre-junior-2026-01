@@ -1,0 +1,131 @@
+name: Publish payment-gateway image (REFERENSI — tidak aktif otomatis)
+
+# ==========================================================================
+# Workflow ini build image Docker untuk sample-apps/payment-gateway,
+# lalu push ke DUA registry sekaligus:
+#   - Docker Hub   : endymuhardin/payment-gateway-js
+#   - GHCR         : ghcr.io/endymuhardin/payment-gateway-js
+#
+# Trigger 'push' sengaja dikomentari supaya fork peserta training tidak
+# memicu build yang pasti gagal karena secret DOCKERHUB_TOKEN tidak ada
+# di fork. Uncomment bagian 'push:' kalau Anda sudah siap auto-publish.
+#
+# Prasyarat:
+#   - Secrets DOCKERHUB_USERNAME dan DOCKERHUB_TOKEN di-set di repo settings
+#   - GHCR pakai GITHUB_TOKEN default; permission 'packages: write' sudah
+#     di-grant di blok 'permissions' di bawah
+#
+# Cara jalan manual: tab Actions → pilih workflow ini → Run workflow.
+# ==========================================================================
+
+on:
+  # push:
+  #   branches: [main]
+  #   tags: ['v*']
+  #   paths:
+  #     - 'sample-apps/payment-gateway/**'
+  #     - '.github/workflows/publish-payment-gateway.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write      # dibutuhkan untuk push ke ghcr.io
+
+concurrency:
+  group: publish-payment-gateway
+  cancel-in-progress: false
+
+env:
+  DOCKERHUB_IMAGE: endymuhardin/payment-gateway-js
+  GHCR_IMAGE: ghcr.io/endymuhardin/payment-gateway-js
+  CONTEXT: sample-apps/payment-gateway
+
+jobs:
+  build-and-push:
+    name: Build & push multi-arch image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # QEMU dibutuhkan untuk build linux/arm64 dari runner amd64.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Secret wajib: DOCKERHUB_USERNAME + DOCKERHUB_TOKEN.
+      # Kalau kedua secret tidak ada (contoh: fork), step ini akan fail.
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # GHCR pakai GITHUB_TOKEN yang disediakan otomatis GitHub.
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # metadata-action menerbitkan tags + OCI labels sesuai event:
+      # - push ke branch       → tag = <branch>
+      # - push ke main         → tag = latest (default branch only)
+      # - push tag git v1.2.3  → tag = v1.2.3 + 1.2.3 + 1.2 + 1 (semver tree)
+      # - semua event          → tag = sha-<shortsha>
+      - name: Extract image metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.DOCKERHUB_IMAGE }}
+            ${{ env.GHCR_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=Payment Gateway Simulator
+            org.opencontainers.image.description=Express.js + pino payment gateway simulator untuk training SRE
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build & push to Docker Hub + GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.CONTEXT }}
+          file: ${{ env.CONTEXT }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # cache-from/to via GitHub Actions cache — build step jauh
+          # lebih cepat di run berikutnya selama Dockerfile layer-cache valid.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Provenance + SBOM default ON di build-push-action v6.
+          # Menghasilkan attestation manifest (yang sudah terlihat di
+          # image Docker Hub Anda sekarang).
+
+      - name: Ringkasan image yang ter-publish
+        run: |
+          echo "### Image ter-publish" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Tags:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Pull command:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.DOCKERHUB_IMAGE }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.GHCR_IMAGE }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
