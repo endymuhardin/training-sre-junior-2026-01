@@ -26,6 +26,7 @@ Batch pertama program Training Junior SRE di tahun 2026.
 - Security hardening dasar
 - Supply chain security — case study Java, Node.js, Go
 - Materi: [`./materi-hardening-supply-chain.md`](./materi-hardening-supply-chain.md)
+- Latihan: [`./latihan-hardening-supply-chain.md`](./latihan-hardening-supply-chain.md)
 
 ### Hari 5 — Redundancy, Testing & Incident Learning
 - High availability patterns
