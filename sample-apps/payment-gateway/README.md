@@ -74,7 +74,30 @@ docker run -p 3000:3000 payment-gateway-js
 
 ## API
 
+Ringkasan semua endpoint:
+
+| Method | Path                                   | Kegunaan                                              |
+|--------|----------------------------------------|-------------------------------------------------------|
+| POST   | `/api/payment`                         | Proses transaksi (endpoint utama)                     |
+| GET    | `/api/health`                          | Liveness — selalu UP                                  |
+| GET    | `/api/admin/config`                    | Inspeksi state simulator                              |
+| PUT    | `/api/admin/config/success-rate`       | Ubah success rate                                     |
+| PUT    | `/api/admin/config/error-distribution` | Ubah komposisi error                                  |
+| PUT    | `/api/admin/config/cpu`                | Aktif/non-aktifkan + tune CPU-intensive simulation    |
+| PUT    | `/api/admin/config/memory`             | Aktif/non-aktifkan + tune memory retention simulation |
+| POST   | `/api/admin/memory/clear`              | Lepaskan record yang ditahan                          |
+| GET    | `/api/admin/metrics`                   | Metrik proses (rss, heap, cpu, retained count)        |
+
+> Endpoint `/api/admin/*` **tidak diautentikasi**. Jangan expose ke luar
+> lingkungan training. Di deployment Ansible, bind tetap di `0.0.0.0:3000`
+> karena nginx yang di-depannya belum filter path admin — silakan tambahkan
+> `location /api/admin/ { deny all; }` di nginx kalau ingin restriksi.
+
 ### `POST /api/payment`
+
+Endpoint utama untuk memproses transaksi. Request akan dihitung dengan
+RNG di simulator untuk menentukan outcome (success atau error RC), plus
+latency sintetik dari bank connector.
 
 Request:
 ```json
@@ -101,47 +124,197 @@ Response (HTTP status mengikuti hasil — `200`, `401`, `402`, `403`, `429`, `50
 }
 ```
 
+HTTP `400` dibalas kalau request body tidak valid (amount bukan angka positif,
+method tidak dikenal, customerId bukan string).
+
 ### `GET /api/health`
 
-Liveness check. Selalu mengembalikan `200` berisi pid dan uptime.
+Liveness check. Tidak sentuh resource eksternal — hanya balik status proses.
+Cocok untuk probe orchestrator (k8s `livenessProbe`, systemd, dll.).
 
-### Admin (tuning saat runtime)
+Response `200`:
+```json
+{ "status": "UP", "pid": 14210, "uptimeSec": 3421 }
+```
+
+Catatan: app ini **tidak** punya endpoint readiness terpisah. Karena tidak
+ada dependency eksternal (DB, cache, upstream real), liveness sekaligus jadi
+readiness. Kalau nanti ditambah DB, bikin `/api/ready` terpisah yang ping DB.
+
+### `GET /api/admin/config`
+
+Kembalikan seluruh state simulator saat ini. Dipakai untuk debugging dan
+cross-check dari load test script (`k6-stress.js` dan `k6-soak.js` cek
+state di `setup()`).
+
+Response `200`:
+```json
+{
+  "successRate": 0.92,
+  "errorDistribution": [ { "rc": "51", "weight": 35, ... }, ... ],
+  "latencyMs": { "baseMin": 40, "baseMax": 180, "timeoutMin": 3000, "timeoutMax": 8000 },
+  "methods": ["QRIS", "VA_BCA", ...],
+  "cpu": { "enabled": false, "probability": 0.3, "hashRounds": 150000 },
+  "memory": { "retainRecords": false, "maxRecords": 200000, "payloadKb": 8 }
+}
+```
+
+### `PUT /api/admin/config/success-rate`
+
+Ubah `simulation.successRate` secara runtime. Log line `warn` ditulis
+`success rate changed at runtime` setiap kali dipanggil — supaya perubahan
+terlihat di post-incident analysis log.
+
+Request:
+```json
+{ "successRate": 0.80 }
+```
+
+Validasi: angka antara 0 dan 1 inklusif. Response `400` kalau di luar rentang.
+
+Response `200`:
+```json
+{ "successRate": 0.80 }
+```
+
+### `PUT /api/admin/config/error-distribution`
+
+Ganti seluruh pool error — entry lama di-replace (bukan di-merge). Dipakai
+untuk simulasi upstream outage (weight RC 68 tinggi) atau fraud spike
+(weight RC 05 tinggi).
+
+Request:
+```json
+{
+  "errorDistribution": [
+    { "rc": "68", "weight": 70, "message": "Upstream Bank Timeout", "level": "error", "httpStatus": 504, "simulateTimeout": true },
+    { "rc": "51", "weight": 30, "message": "Insufficient Funds", "level": "warn", "httpStatus": 402 }
+  ]
+}
+```
+
+Validasi setiap entry: `rc`, `weight`, `message`, `level`, `httpStatus` wajib; `weight > 0`; `level` ∈ {info, warn, error}. Response `400` kalau gagal validasi.
+
+Response `200`: echo back `errorDistribution` baru.
+
+### `PUT /api/admin/config/cpu`
+
+Aktif/non-aktifkan + tune CPU-intensive fraud scoring (SHA-256 hashing
+loop sinkron di event loop). Dipakai untuk demonstrasi saturasi CPU dan
+event-loop lag di `k6-stress.js`.
+
+Request (semua field opsional — yang tidak dikirim akan dipertahankan):
+```json
+{ "enabled": true, "probability": 0.4, "hashRounds": 200000 }
+```
+
+- `enabled`: boolean, saklar master
+- `probability`: 0..1, fraksi request yang kena jalur CPU
+- `hashRounds`: integer ≥ 0, jumlah iterasi SHA-256 per request yang terpicu
+
+Response `200`: state `cpu` penuh setelah update.
+
+### `PUT /api/admin/config/memory`
+
+Aktif/non-aktifkan + tune retensi record di memory. Dipakai untuk
+demonstrasi memory leak di `k6-soak.js`.
+
+Request (semua field opsional):
+```json
+{ "retainRecords": true, "payloadKb": 16, "maxRecords": 500000 }
+```
+
+- `retainRecords`: boolean, saklar master
+- `maxRecords`: integer > 0, batas aman agar tidak OOM
+- `payloadKb`: integer ≥ 0, ukuran buffer dummy per record (untuk mempercepat growth RSS)
+
+Response `200`: state `memory` penuh setelah update.
+
+### `POST /api/admin/memory/clear`
+
+Kosongkan `Map<txnId, record>` yang menahan record (recovery dari leak
+sintetik). `retainRecords` flag **tidak** diubah — kalau masih `true`,
+record baru langsung ditahan lagi.
+
+Request: tidak ada body.
+
+Response `200`:
+```json
+{ "dropped": 23013 }
+```
+
+Catatan: `retainedRecords` di `/api/admin/metrics` langsung jadi 0 setelah
+call ini, tapi `rssMb` dan `arrayBuffersMb` baru turun setelah V8 GC berikutnya
+(lazy, bisa beberapa detik hingga menit).
+
+### `GET /api/admin/metrics`
+
+Metrik proses real-time. Sumber primary untuk observasi memory/CPU saat
+load test (dipakai `watch -n 5 'curl -s .../metrics | jq'`).
+
+Response `200`:
+```json
+{
+  "retainedRecords": 21377,
+  "memoryUsage": {
+    "rssMb": 300.78,
+    "heapUsedMb": 29.81,
+    "heapTotalMb": 52.3,
+    "externalMb": 168.4,
+    "arrayBuffersMb": 167.11
+  },
+  "cpuUsage": {
+    "userMs": 489270.87,
+    "systemMs": 10724.94
+  },
+  "uptimeSec": 9609
+}
+```
+
+- `retainedRecords`: jumlah entry di `Map` retensi (jika `memory.retainRecords=true`)
+- `memoryUsage.*`: hasil `process.memoryUsage()`, dikonversi ke MB
+- `cpuUsage.userMs` / `.systemMs`: **kumulatif** CPU time sejak start (bukan %).
+  Untuk dapat % 1 core: `delta_userMs / (interval_detik × 1000) × 100`. Penjelasan
+  lengkap + contoh ada di [loadtest/CAPACITY.md](loadtest/CAPACITY.md#konversi-cpu-ms-).
+- `uptimeSec`: proses uptime
+
+Saat CPU simulation aktif dan event loop tersumbat, **endpoint ini juga bisa
+timeout** — lihat section "Hasil observasi aktual → Stress" untuk contoh
+(admin endpoint dead ~4.5 menit selama fase puncak stress).
+
+### Cheat-sheet curl
 
 ```bash
-# lihat state simulator sekarang (success rate, error, cpu, memory)
+# Inspeksi + metrik
 curl http://localhost:3000/api/admin/config
-
-# metrik proses + retained records (rss, heap, cpu usage)
 curl http://localhost:3000/api/admin/metrics
 
-# ubah success rate
+# Ubah success rate
 curl -X PUT http://localhost:3000/api/admin/config/success-rate \
   -H 'content-type: application/json' \
   -d '{"successRate": 0.80}'
 
-# ganti distribusi error
+# Aktifkan CPU-intensive
+curl -X PUT http://localhost:3000/api/admin/config/cpu \
+  -H 'content-type: application/json' \
+  -d '{"enabled": true, "probability": 0.4, "hashRounds": 200000}'
+
+# Aktifkan memory retention
+curl -X PUT http://localhost:3000/api/admin/config/memory \
+  -H 'content-type: application/json' \
+  -d '{"retainRecords": true, "payloadKb": 16, "maxRecords": 500000}'
+
+# Recovery memory
+curl -X POST http://localhost:3000/api/admin/memory/clear
+
+# Demo upstream outage (weight RC 68 tinggi)
 curl -X PUT http://localhost:3000/api/admin/config/error-distribution \
   -H 'content-type: application/json' \
   -d '{"errorDistribution":[
         {"rc":"68","weight":70,"message":"Upstream Bank Timeout","level":"error","httpStatus":504,"simulateTimeout":true},
         {"rc":"51","weight":30,"message":"Insufficient Funds","level":"warn","httpStatus":402}
       ]}'
-
-# aktifkan fraud scoring CPU-intensive (loop hashing SHA-256 per request)
-curl -X PUT http://localhost:3000/api/admin/config/cpu \
-  -H 'content-type: application/json' \
-  -d '{"enabled": true, "probability": 0.4, "hashRounds": 200000}'
-
-# aktifkan retensi memori (tiap transaksi yang diproses ditahan di RAM dengan payload buffer)
-curl -X PUT http://localhost:3000/api/admin/config/memory \
-  -H 'content-type: application/json' \
-  -d '{"retainRecords": true, "payloadKb": 16, "maxRecords": 500000}'
-
-# lepaskan record yang ditahan (demo recovery)
-curl -X POST http://localhost:3000/api/admin/memory/clear
 ```
-
-> Endpoint admin tidak diautentikasi — jangan expose ke luar lingkungan training.
 
 ## Tuning
 
