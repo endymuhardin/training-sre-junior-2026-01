@@ -28,7 +28,7 @@ WORKDIR /app
 # --omit=dev skip devDependencies (kalau ada nanti: mocha, nodemon, dll.)
 # --chown=node:node supaya file dimiliki user non-root dari awal.
 COPY --chown=node:node package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev --cache /tmp/empty-cache && rm -rf /tmp/empty-cache
 
 # Salin hanya folder yang dibutuhkan runtime — bukan `COPY . .`.
 # Hindarkan .git/, logs/, node_modules/ lokal, db-aplikasi/, loadtest/,
