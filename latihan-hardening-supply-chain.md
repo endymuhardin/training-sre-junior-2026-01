@@ -58,9 +58,9 @@ Semua perintah `trivy ...`, `syft ...` dst. di sisa latihan bekerja persis sama 
 
 **Catatan Docker socket**: mount `/var/run/docker.sock` bekerja via WSL2 backend Docker Desktop. Tool di container bisa lihat image `hello-db:latihan` dan `payment-gateway:latihan` yang di-build lokal.
 
-### Opsi B: VPS Linux masing-masing
+### Opsi B: VPS RHEL 9 masing-masing
 
-Trainee sudah punya VPS (dari materi Hari 3 + ansible-deploy). Jalankan semua latihan di VPS:
+Trainee sudah punya VPS RHEL 9 (dari materi Hari 3 + `ansible-deploy/`). Jalankan semua latihan di VPS:
 
 ```bash
 # Dari Windows
@@ -69,20 +69,21 @@ ssh trainee@<vps-ip>
 # Di VPS, clone repo (atau rsync dari laptop)
 git clone https://github.com/endymuhardin/training-sre-junior-2026-01.git
 cd training-sre-junior-2026-01
-
-# Install tool native (lihat command di Opsi C di bawah — VPS Linux sama dengan WSL2)
 ```
 
-Kelebihan: lingkungan identik dengan production (VPS memang Linux). Kekurangan: tambahan step SSH, harus copy file output hasil scan kembali ke laptop kalau mau dipresentasikan, dan koneksi SSH yang putus mengganggu alur latihan.
+Kemudian install Docker CE dan tool scanning — ikuti **bagian RHEL 9** di Opsi C di bawah. VPS `ansible-deploy` yang ada sudah pasang EPEL + base tools (`curl`, `wget`, `git`), tapi belum pasang Docker maupun tool scanning.
+
+Kelebihan: lingkungan identik dengan production (VPS memang Linux, SELinux enforcing, firewalld aktif — test hardening di sini paling jujur). Kekurangan: tambahan step SSH, perlu copy file output hasil scan kembali ke laptop untuk presentasi, koneksi SSH putus mengganggu alur latihan.
 
 Bila pilih opsi ini, build image di VPS langsung: `docker build -t hello-db:latihan .` di direktori VPS.
 
-### Opsi C: WSL2 dengan tool native (power user)
+### Opsi C: Tool native di Linux (WSL2 atau VPS RHEL 9)
 
-Untuk trainee yang sudah nyaman di WSL2 dan ingin eksekusi paling cepat (tanpa overhead spin-up container per-invocation):
+Untuk trainee yang sudah nyaman di terminal Linux dan ingin eksekusi paling cepat (tanpa overhead spin-up container per-invocation). Pilih sub-bagian sesuai distro.
+
+#### C.1 — Ubuntu / Debian (WSL2)
 
 ```bash
-# WSL2 Ubuntu/Debian
 # Trivy
 sudo apt-get install -y wget apt-transport-https gnupg
 wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
@@ -106,9 +107,113 @@ sudo dpkg -i /tmp/dockle.deb
 # Cosign
 sudo curl -sSfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 \
   -o /usr/local/bin/cosign && sudo chmod +x /usr/local/bin/cosign
+
+# jq (biasanya sudah ada)
+sudo apt-get install -y jq
 ```
 
-Docker Desktop di Windows sudah meng-ekspose Docker daemon ke WSL2, jadi `docker build`, `trivy image ...`, dll. langsung bekerja tanpa konfigurasi tambahan. Tool melihat image yang sama dengan yang di Docker Desktop.
+Docker Desktop di Windows meng-ekspose Docker daemon ke WSL2, jadi `docker build`, `trivy image ...`, dll. langsung bekerja tanpa konfigurasi tambahan. Tool melihat image yang sama dengan yang di Docker Desktop.
+
+#### C.2 — RHEL 9 (VPS)
+
+**Install Docker CE** (RHEL 9 default ke Podman, tapi latihan ini pakai Docker CE untuk konsistensi perintah dan kompatibilitas mount socket):
+
+```bash
+# Hapus podman-docker shim kalau ada (menghindari bentrok dengan docker CE)
+sudo dnf remove -y podman-docker 2>/dev/null || true
+
+# Repo resmi Docker untuk RHEL/CentOS
+sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+# Install engine + CLI + compose plugin
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Start & enable
+sudo systemctl enable --now docker
+
+# Tambahkan user ke group docker supaya tidak perlu sudo tiap kali
+sudo usermod -aG docker $USER
+# Logout + login ulang, atau: newgrp docker
+
+# Verifikasi
+docker version
+docker compose version
+```
+
+**Install tool scanning**:
+
+```bash
+# Trivy — repo resmi Aqua Security untuk RPM
+sudo tee /etc/yum.repos.d/trivy.repo >/dev/null <<'EOF'
+[trivy]
+name=Trivy repository
+baseurl=https://aquasecurity.github.io/trivy-repo/rpm/releases/$basearch/
+gpgcheck=1
+enabled=1
+gpgkey=https://aquasecurity.github.io/trivy-repo/rpm/public.key
+EOF
+sudo dnf install -y trivy
+
+# Grype, Syft — installer shell, OS-agnostic (deteksi arch otomatis)
+curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sudo sh -s -- -b /usr/local/bin
+curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sudo sh -s -- -b /usr/local/bin
+
+# Hadolint — static binary
+sudo curl -L https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64 \
+  -o /usr/local/bin/hadolint && sudo chmod +x /usr/local/bin/hadolint
+
+# Dockle — paket RPM
+VERSION=$(curl -s https://api.github.com/repos/goodwithtech/dockle/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+curl -L -o /tmp/dockle.rpm "https://github.com/goodwithtech/dockle/releases/download/v${VERSION}/dockle_${VERSION}_Linux-64bit.rpm"
+sudo rpm -Uvh /tmp/dockle.rpm
+
+# Cosign — static binary
+sudo curl -sSfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 \
+  -o /usr/local/bin/cosign && sudo chmod +x /usr/local/bin/cosign
+
+# jq — dari EPEL (EPEL sudah diaktifkan oleh ansible-deploy/roles/common)
+sudo dnf install -y jq
+
+# Go toolchain (untuk Latihan 4 — govulncheck native)
+sudo dnf install -y golang
+# Catatan: versi dari repo RHEL AppStream bisa lebih lama dari yang dipakai hello-db (1.23).
+# Kalau butuh versi tepat, download tarball resmi:
+#   curl -LO https://go.dev/dl/go1.23.0.linux-amd64.tar.gz
+#   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.23.0.linux-amd64.tar.gz
+#   echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc && source ~/.bashrc
+```
+
+**Catatan khusus RHEL 9 — perlu diperhatikan saat latihan**:
+
+1. **SELinux enforcing**. Cek dengan `getenforce`. Beberapa latihan runtime (Latihan 7) mount `/var/run/docker.sock`, readonly rootfs, tmpfs — semua bekerja dengan SELinux aktif tapi bisa butuh label `:z` / `:Z` di volume bila ada permission denied:
+   ```bash
+   docker run -v ./data:/data:Z ...
+   ```
+   Jangan `setenforce 0` untuk latihan — justru SELinux enforcing adalah bagian realita production dan memperkuat pelajaran defense-in-depth.
+
+2. **Firewalld aktif**. Port yang dipakai latihan (3001, 3002, 5000, 8080, 8081, 8082) diblok secara default dari luar VPS. Dua opsi:
+   - Akses hanya dari dalam VPS (lewat SSH tunnel atau `curl localhost:...` langsung di VPS) — direkomendasikan, tidak perlu ubah firewall.
+   - Buka port untuk pengetesan dari luar (mis. laptop):
+     ```bash
+     sudo firewall-cmd --add-port=5000/tcp --add-port=8080/tcp --add-port=8082/tcp
+     # Tambahkan --permanent kalau mau persist reboot.
+     ```
+     Ingat tutup lagi setelah latihan selesai: `sudo firewall-cmd --remove-port=5000/tcp ...`.
+
+3. **SSH tunnel untuk UI Dependency-Track (Latihan 10)**. Dari laptop Windows/macOS:
+   ```bash
+   ssh -L 8080:localhost:8080 -L 8082:localhost:8082 trainee@<vps-ip>
+   ```
+   Buka browser lokal ke `http://localhost:8080` — akses aman tanpa membuka port di firewalld.
+
+4. **cgroup v2**. RHEL 9 default cgroup v2, Docker CE 24+ sudah kompatibel. `--memory`, `--cpus`, `--pids-limit` di Latihan 7 bekerja penuh.
+
+5. **Rootless Docker (opsional)**. Bila tidak ingin tambahkan user ke group `docker` (privileged equivalent), pakai rootless:
+   ```bash
+   dockerd-rootless-setuptool.sh install
+   export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
+   ```
+   Tradeoff: beberapa latihan runtime hardening lebih mudah ditelusuri di mode standard — pilih mode standard dulu untuk latihan pertama.
 
 ### Rekomendasi
 
