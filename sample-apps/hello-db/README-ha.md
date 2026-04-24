@@ -49,7 +49,7 @@ Apa yang di-demo-kan di layer ini:
 
 ```bash
 cd sample-apps/hello-db
-docker compose -f docker-compose.ha.yml up --build -d
+docker compose -f docker-compose.ha.yml up -d
 ```
 
 Tunggu semua service `healthy`:
@@ -501,9 +501,13 @@ harus re-bootstrap standby dari primary yang baru dibuat).
 
 ## Latihan
 
-1. **Zero-downtime deploy**. Dengan stack app-tier up, rebuild app image
-   (edit `main.go`, `docker compose -f docker-compose.ha.yml up -d --build app1`).
-   Amati di stats HAProxy: saat app1 restart, trafik kontinu dilayani app2/app3.
+1. **Zero-downtime deploy**. Di `docker-compose.ha.yml`, tambahkan
+   `build: .` pada service `app1` (sementara menimpa `image:`). Edit
+   `main.go` (misal ubah pesan di `/whoami`), jalankan
+   `docker compose -f docker-compose.ha.yml up -d --build app1`. Amati
+   di stats HAProxy: saat app1 restart, trafik kontinu dilayani app2/app3.
+   Setelah selesai, kembalikan service ke image versioned supaya konsisten
+   dengan peserta lain.
 2. **Kill yang tidak bersih**. `docker compose kill app3` (SIGKILL, bukan
    stop). Berapa detik sampai HAProxy menandainya DOWN? Bandingkan dengan
    `stop`. Kenapa beda?

@@ -16,7 +16,7 @@
 # lihat latihan lanjutan di README-ha.md.
 #
 # Jalankan:
-#   docker compose -f docker-compose.ha.yml up --build -d
+#   docker compose -f docker-compose.ha.yml up -d
 #
 # Observasi load balancing (lihat header X-Instance-Id berganti-ganti):
 #   for i in $(seq 1 6); do curl -sSI http://localhost:8080/whoami | grep -i x-instance-id; done
@@ -48,8 +48,7 @@ services:
       start_period: 5s
 
   app1:
-    build: .
-    image: hello-db-go:ha
+    image: endymuhardin/hello-db-go:2026.04.02
     environment:
       PORT: 8080
       INSTANCE_ID: app1
@@ -63,8 +62,7 @@ services:
         condition: service_healthy
 
   app2:
-    build: .
-    image: hello-db-go:ha
+    image: endymuhardin/hello-db-go:2026.04.02
     environment:
       PORT: 8080
       INSTANCE_ID: app2
@@ -78,8 +76,7 @@ services:
         condition: service_healthy
 
   app3:
-    build: .
-    image: hello-db-go:ha
+    image: endymuhardin/hello-db-go:2026.04.02
     environment:
       PORT: 8080
       INSTANCE_ID: app3

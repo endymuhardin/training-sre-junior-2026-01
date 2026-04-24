@@ -20,7 +20,7 @@ services:
 
   app:
     # build: .
-    image: endymuhardin/hello-db-go
+    image: endymuhardin/hello-db-go:2026.04.02
     environment:
       PORT: 8080
       INSTANCE_ID: solo      # single instance, identifier fixed
