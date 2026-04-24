@@ -23,6 +23,7 @@ services:
     image: endymuhardin/hello-db-go
     environment:
       PORT: 8080
+      INSTANCE_ID: solo      # single instance, identifier fixed
       DB_HOST: db            # DNS otomatis di-provide docker-compose (= service name)
       DB_PORT: 5432
       DB_USER: hello

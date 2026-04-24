@@ -25,6 +25,7 @@ type Greeting struct {
 
 type Config struct {
 	Port       int
+	InstanceID string
 	DBHost     string
 	DBPort     int
 	DBUser     string
@@ -33,8 +34,9 @@ type Config struct {
 }
 
 type Server struct {
-	db  *sql.DB
-	log *slog.Logger
+	db         *sql.DB
+	log        *slog.Logger
+	instanceID string
 }
 
 func main() {
@@ -79,16 +81,17 @@ func main() {
 	}
 	log.Info("schema ready", "table", "greetings")
 
-	srv := &Server{db: db, log: log}
+	srv := &Server{db: db, log: log, instanceID: cfg.InstanceID}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", srv.health)
 	mux.HandleFunc("GET /ready", srv.ready)
+	mux.HandleFunc("GET /whoami", srv.whoami)
 	mux.HandleFunc("GET /greetings", srv.listGreetings)
 	mux.HandleFunc("POST /greetings", srv.createGreeting)
 
 	httpSrv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           logMiddleware(log, mux),
+		Handler:           logMiddleware(log, instanceHeader(cfg.InstanceID, mux)),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -106,7 +109,7 @@ func main() {
 		close(idleClosed)
 	}()
 
-	log.Info("listening", "port", cfg.Port)
+	log.Info("listening", "port", cfg.Port, "instance", cfg.InstanceID)
 	if err := httpSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.Error("http server error", "err", err)
 		os.Exit(1)
@@ -119,6 +122,9 @@ func loadConfig() (*Config, error) {
 	c := &Config{}
 	var err error
 	if c.Port, err = requireInt("PORT"); err != nil {
+		return nil, err
+	}
+	if c.InstanceID, err = requireString("INSTANCE_ID"); err != nil {
 		return nil, err
 	}
 	if c.DBHost, err = requireString("DB_HOST"); err != nil {
@@ -180,6 +186,14 @@ func connectDB(c *Config) (*sql.DB, error) {
 }
 
 func initSchema(db *sql.DB) error {
+	// Advisory lock untuk men-serialize DDL kalau beberapa instance app start
+	// bersamaan. `CREATE TABLE IF NOT EXISTS` bukan concurrent-safe di Postgres
+	// — race condition bisa melanggar unique constraint di pg_type.
+	if _, err := db.Exec(`SELECT pg_advisory_lock(7426)`); err != nil {
+		return fmt.Errorf("acquire advisory lock: %w", err)
+	}
+	defer db.Exec(`SELECT pg_advisory_unlock(7426)`)
+
 	const ddl = `
 		CREATE TABLE IF NOT EXISTS greetings (
 			id BIGSERIAL PRIMARY KEY,
@@ -192,7 +206,14 @@ func initSchema(db *sql.DB) error {
 }
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"status": "UP"})
+	writeJSON(w, http.StatusOK, map[string]any{"status": "UP", "instance": s.instanceID})
+}
+
+func (s *Server) whoami(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"instance": s.instanceID,
+		"servedAt": time.Now().UTC().Format(time.RFC3339Nano),
+	})
 }
 
 func (s *Server) ready(w http.ResponseWriter, r *http.Request) {
@@ -201,11 +222,13 @@ func (s *Server) ready(w http.ResponseWriter, r *http.Request) {
 	if err := s.db.PingContext(ctx); err != nil {
 		s.log.Warn("readiness check failed", "err", err)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
-			"status": "DOWN", "error": err.Error(),
+			"status": "DOWN", "instance": s.instanceID, "error": err.Error(),
 		})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"status": "UP", "db": "connected"})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": "UP", "instance": s.instanceID, "db": "connected",
+	})
 }
 
 func (s *Server) listGreetings(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +303,16 @@ func logMiddleware(log *slog.Logger, next http.Handler) http.Handler {
 			"status", rw.status,
 			"durationMs", time.Since(start).Milliseconds(),
 		)
+	})
+}
+
+// instanceHeader menambahkan header X-Instance-Id ke setiap response supaya
+// client / load balancer dapat melihat instance mana yang meng-handle request.
+// Di-set sebelum handler menulis body — WriteHeader akan flush header ini.
+func instanceHeader(id string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Instance-Id", id)
+		next.ServeHTTP(w, r)
 	})
 }
 

@@ -1,0 +1,98 @@
+# Day-5 demo: Postgres primary + hot standby dengan manual failover.
+#
+# Topologi:
+#
+#   client → pg-primary :5432   (writable)
+#                │ streaming replication
+#                ↓
+#            pg-standby :5433   (read-only hot standby)
+#
+# Demo ini TIDAK include aplikasi — fokus di layer database. Untuk
+# stack aplikasi + load balancer lihat docker-compose.ha.yml.
+#
+# Jalankan:
+#   docker compose -f docker-compose.pg-ha.yml up -d
+#
+# Verifikasi replikasi (di host terminal):
+#   # tulis ke primary
+#   docker compose -f docker-compose.pg-ha.yml exec pg-primary \
+#     psql -U hello -d hellodb -c "CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2);"
+#
+#   # baca dari standby — data sudah ter-replikasi
+#   docker compose -f docker-compose.pg-ha.yml exec pg-standby \
+#     psql -U hello -d hellodb -c "SELECT * FROM t;"
+#
+#   # konfirmasi standby memang read-only (harus error)
+#   docker compose -f docker-compose.pg-ha.yml exec pg-standby \
+#     psql -U hello -d hellodb -c "INSERT INTO t VALUES (3);"
+#
+# Manual failover (saat primary down):
+#   docker compose -f docker-compose.pg-ha.yml stop pg-primary
+#   docker compose -f docker-compose.pg-ha.yml exec pg-standby \
+#     su postgres -c "pg_ctl promote -D /var/lib/postgresql/data"
+#   # sekarang pg-standby writable
+
+services:
+  pg-primary:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: hello
+      POSTGRES_PASSWORD: hello
+      POSTGRES_DB: hellodb
+      # postgres:18-alpine default PGDATA = /var/lib/postgresql/18/docker.
+      # Override ke path konvensional supaya volume mount cocok dan script
+      # failover (pg_ctl promote) bisa pakai path yang sama.
+      PGDATA: /var/lib/postgresql/data
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=replica"
+      - "-c"
+      - "max_wal_senders=5"
+      - "-c"
+      - "wal_keep_size=64MB"
+      - "-c"
+      - "hot_standby=on"
+      - "-c"
+      - "password_encryption=scram-sha-256"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-primary-data:/var/lib/postgresql/data
+      - ./pg-ha/primary-init.sh:/docker-entrypoint-initdb.d/10-replication-user.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hello -d hellodb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  pg-standby:
+    image: postgres:18-alpine
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      PRIMARY_HOST: pg-primary
+      PRIMARY_PORT: 5432
+      REPL_USER: replicator
+      REPL_PASSWORD: replpass
+    entrypoint: ["/bin/bash", "/opt/standby-entrypoint.sh"]
+    # Postgres akan jalan di 5432 internal, expose ke host di 5433 supaya
+    # tidak bentrok dengan primary.
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg-standby-data:/var/lib/postgresql/data
+      - ./pg-ha/standby-entrypoint.sh:/opt/standby-entrypoint.sh:ro
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hello -d hellodb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
+volumes:
+  pg-primary-data:
+  pg-standby-data:

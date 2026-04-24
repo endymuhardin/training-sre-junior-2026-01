@@ -1,0 +1,109 @@
+# Day-5 demo: High Availability + Load Balancing + Failover
+#
+# Topologi:
+#
+#   client  →  haproxy :8080  →  app1 :8080  ┐
+#                              →  app2 :8080  ├→  db :5432
+#                              →  app3 :8080  ┘
+#
+# Cakupan demo:
+#   - HA         : tiga instance app berjalan paralel (app1/app2/app3)
+#   - LB         : HAProxy membagi request round-robin
+#   - Failover   : HAProxy aktif-health-check ke /health, instance DOWN
+#                  otomatis dikeluarkan dari rotasi
+#
+# DB-level HA (primary+replica, auto-failover) tidak termasuk di demo ini —
+# lihat latihan lanjutan di README-ha.md.
+#
+# Jalankan:
+#   docker compose -f docker-compose.ha.yml up --build -d
+#
+# Observasi load balancing (lihat header X-Instance-Id berganti-ganti):
+#   for i in $(seq 1 6); do curl -sSI http://localhost:8080/whoami | grep -i x-instance-id; done
+#
+# Stats HAProxy (lihat backend naik/turun real-time):
+#   http://localhost:8404/stats   (user: admin  pass: admin)
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: hello
+      POSTGRES_PASSWORD: hello
+      POSTGRES_DB: hellodb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hello -d hellodb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  app1:
+    build: .
+    image: hello-db-go:ha
+    environment:
+      PORT: 8080
+      INSTANCE_ID: app1
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: hello
+      DB_PASSWORD: hello
+      DB_NAME: hellodb
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app2:
+    build: .
+    image: hello-db-go:ha
+    environment:
+      PORT: 8080
+      INSTANCE_ID: app2
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: hello
+      DB_PASSWORD: hello
+      DB_NAME: hellodb
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app3:
+    build: .
+    image: hello-db-go:ha
+    environment:
+      PORT: 8080
+      INSTANCE_ID: app3
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: hello
+      DB_PASSWORD: hello
+      DB_NAME: hellodb
+    depends_on:
+      db:
+        condition: service_healthy
+
+  lb:
+    image: haproxy:3.0-alpine
+    ports:
+      - "8080:8080"     # traffic masuk (aplikasi)
+      - "8404:8404"     # stats page HAProxy
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - app1
+      - app2
+      - app3
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8404/stats >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  db-data:
