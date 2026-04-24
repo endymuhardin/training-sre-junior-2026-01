@@ -520,7 +520,18 @@ harus re-bootstrap standby dari primary yang baru dibuat).
    query di pg-primary: `SELECT pg_wal_lsn_diff(pg_current_wal_lsn(),
    replay_lsn) AS lag_bytes FROM pg_stat_replication;`.
    Amati angka naik → turun.
-5. **Failback**. Setelah pg-primary mati + pg-standby di-promote, buat
-   node baru untuk jadi standby dari primary baru. Hint: perlu
-   `pg_basebackup` dari node yang sekarang primary, dan update
-   `primary_conninfo` di node lama (atau re-init dari kosong).
+5. **Failback**. Setelah pg-primary lama mati dan pg-standby di-promote,
+   kembalikan topologi 1-primary-1-standby dengan menjadikan node lama
+   sebagai standby dari primary baru. Dua jalur:
+   - **`pg_basebackup` re-bootstrap** (paling sederhana, selalu jalan):
+     wipe data dir pg-primary lama, jalankan `pg_basebackup` dari
+     pg-standby (primary baru), start sebagai standby. Transfer semua
+     byte data tapi tidak ada prasyarat khusus.
+   - **`pg_rewind`** (lebih efisien, tapi rewel): hanya sync blok yang
+     diverge via WAL. Butuh `wal_log_hints=on` atau data checksums, dan
+     old-primary harus di-shutdown bersih sebelum promote. Silakan baca
+     [dokumentasi resmi pg_rewind](https://www.postgresql.org/docs/current/app-pgrewind.html).
+   Catatan: service `pg-primary` di compose ini hardcode boot sebagai
+   primary (tidak ada standby-entrypoint). Untuk eksekusi real, anda
+   perlu menambahkan mount script generik ke service tsb atau override
+   command-nya. Diskusikan trade-off-nya dengan instruktur.
