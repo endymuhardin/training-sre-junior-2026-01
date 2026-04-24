@@ -2,10 +2,10 @@
 #
 # Topologi:
 #
-#   client → pg-primary :5432   (writable)
-#                │ streaming replication
-#                ↓
-#            pg-standby :5433   (read-only hot standby)
+#   client (host) → pg-primary :25432   (writable)
+#                       │ streaming replication (internal :5432)
+#                       ↓
+#                  pg-standby :25433    (read-only hot standby)
 #
 # Demo ini TIDAK include aplikasi — fokus di layer database. Untuk
 # stack aplikasi + load balancer lihat docker-compose.ha.yml.
@@ -56,7 +56,8 @@ services:
       - "-c"
       - "password_encryption=scram-sha-256"
     ports:
-      - "5432:5432"
+      # 25432 (bukan 5432) supaya tidak bentrok dengan Postgres sistem.
+      - "25432:5432"
     volumes:
       - pg-primary-data:/var/lib/postgresql/data
       - ./pg-ha/primary-init.sh:/docker-entrypoint-initdb.d/10-replication-user.sh:ro
@@ -76,10 +77,10 @@ services:
       REPL_USER: replicator
       REPL_PASSWORD: replpass
     entrypoint: ["/bin/bash", "/opt/standby-entrypoint.sh"]
-    # Postgres akan jalan di 5432 internal, expose ke host di 5433 supaya
-    # tidak bentrok dengan primary.
+    # Postgres jalan di 5432 internal. Expose ke host di 25433 supaya
+    # tidak bentrok dengan primary (25432) maupun Postgres sistem (5432).
     ports:
-      - "5433:5432"
+      - "25433:5432"
     volumes:
       - pg-standby-data:/var/lib/postgresql/data
       - ./pg-ha/standby-entrypoint.sh:/opt/standby-entrypoint.sh:ro

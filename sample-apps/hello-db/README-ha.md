@@ -24,7 +24,7 @@ flowchart LR
   app1[app1<br/>INSTANCE_ID=app1]
   app2[app2<br/>INSTANCE_ID=app2]
   app3[app3<br/>INSTANCE_ID=app3]
-  db[(Postgres<br/>:5432)]
+  db[(Postgres<br/>host :25432 → container :5432)]
 
   client -->|HTTP| lb
   lb -->|roundrobin + /health check| app1
@@ -152,8 +152,8 @@ docker compose -f docker-compose.ha.yml down -v
 ```mermaid
 flowchart LR
   client([client / psql])
-  primary[(pg-primary<br/>:5432<br/>writable)]
-  standby[(pg-standby<br/>:5433<br/>hot standby, read-only)]
+  primary[(pg-primary<br/>host :25432<br/>writable)]
+  standby[(pg-standby<br/>host :25433<br/>hot standby, read-only)]
 
   client -->|read+write| primary
   client -.->|read saja| standby
@@ -289,6 +289,213 @@ operasi eksplisit (sering disebut "failback").
 ```bash
 docker compose -f docker-compose.pg-ha.yml down -v
 ```
+
+---
+
+## Lab: Skenario Failover
+
+Dua drill praktis. Masing-masing bisa dikerjakan independen. Target waktu
+~20 menit per drill.
+
+### Lab A — Failover Instance Aplikasi
+
+**Tujuan**: peserta dapat (1) mendeteksi instance down, (2) membuktikan LB
+melakukan rerouting otomatis, (3) mengukur waktu detect+recovery.
+
+**Pre-requisite**: `docker-compose.ha.yml` sudah running, semua container
+healthy (`docker compose -f docker-compose.ha.yml ps`).
+
+#### Setup — dua terminal
+
+**Terminal 1 (observer)** — generator traffic dan log real-time:
+
+```bash
+while true; do
+  printf "%s " "$(date +%H:%M:%S)"
+  curl -m 2 -sS http://localhost:8080/whoami \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['instance'])" \
+    || echo "ERROR"
+  sleep 0.5
+done
+```
+
+Buka juga stats HAProxy di browser: `http://<host>:8404/stats`
+(user: `admin`, pass: `admin`). Refresh otomatis tiap 5 detik.
+
+**Terminal 2 (operator)** — tempat meng-eksekusi failure injection.
+
+#### Langkah drill
+
+1. **Baseline** — amati Terminal 1 selama ~10 detik. Catat:
+   - Sebaran instance dalam 10 request terakhir (harus ~3-3-4 antara
+     app1/app2/app3).
+   - Stats page: semua baris backend hijau (status `UP`).
+
+2. **Inject failure — SIGKILL** (simulasi crash mendadak, bukan graceful):
+   ```bash
+   docker compose -f docker-compose.ha.yml kill app2
+   ```
+   Catat `T0` = waktu eksekusi.
+
+3. **Observasi deteksi** di Terminal 1:
+   - `T1` = waktu `app2` terakhir muncul.
+   - `T2` = waktu pertama kali TIDAK ada `app2` selama 5 request berturut-turut.
+   - Detection time = `T2 − T0`. Bandingkan dengan `inter 2s × fall 2` = 4 detik.
+   - Apakah ada baris `ERROR`? Kalau ada, berapa banyak dari total request
+     selama window?
+
+4. **Observasi stats page** — `app2` harus berpindah warna ke merah, kolom
+   `LastChk` menunjukkan response error atau timeout, kolom `Chk Fail`
+   bertambah.
+
+5. **Recovery** — nyalakan kembali:
+   ```bash
+   docker compose -f docker-compose.ha.yml start app2
+   ```
+   Catat `T3` = waktu eksekusi.
+
+6. **Observasi re-entry**:
+   - `T4` = waktu `app2` muncul pertama kali di Terminal 1 lagi.
+   - Recovery time = `T4 − T3`. Bandingkan dengan `inter 2s × rise 2` ≈ 4 detik
+     (plus boot container + initial ping DB).
+
+7. **Eksperimen pembanding — `stop` vs `kill`**:
+   ```bash
+   docker compose -f docker-compose.ha.yml stop app3     # SIGTERM, graceful
+   # tunggu 10 detik, amati
+   docker compose -f docker-compose.ha.yml start app3
+   ```
+   Apakah `Detection time` beda dibanding `kill`? Kenapa?
+
+#### Deliverable peserta
+
+Laporan singkat berisi:
+
+- Timeline dengan 4 timestamp (T0–T4) dan hitung selisihnya.
+- Jumlah request loss (baris ERROR) selama window failover, sebagai persen
+  dari total request di window itu.
+- Jawaban: kenapa dari sudut pandang client, request tidak gagal total
+  meski ada 1 backend mati?
+- Jawaban: beda perilaku `kill` vs `stop`, dan mana yang mirip skenario
+  "server crash" vs "deploy / restart".
+
+---
+
+### Lab B — Failover Primary Database
+
+**Tujuan**: peserta dapat (1) membuktikan replikasi streaming bekerja,
+(2) men-simulasikan primary mati, (3) men-promote standby jadi primary baru,
+(4) menjelaskan risiko split-brain.
+
+**Pre-requisite**: `docker-compose.pg-ha.yml` running, kedua container healthy.
+
+#### Setup shortcut
+
+Supaya perintah pendek:
+
+```bash
+alias dc="docker compose -f docker-compose.pg-ha.yml"
+```
+
+#### Langkah drill
+
+1. **Baseline — siapkan data di primary**:
+   ```bash
+   dc exec pg-primary psql -U hello -d hellodb <<-SQL
+     CREATE TABLE IF NOT EXISTS orders (
+       id BIGSERIAL PRIMARY KEY,
+       item TEXT NOT NULL,
+       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+     );
+     INSERT INTO orders (item) VALUES ('baseline-1'), ('baseline-2'), ('baseline-3');
+   SQL
+   ```
+
+2. **Verifikasi replikasi** — data harus sudah sampai di standby:
+   ```bash
+   dc exec pg-standby psql -U hello -d hellodb -c "SELECT count(*) FROM orders;"
+   # expected: count = 3
+   ```
+
+3. **Cek status replikasi dari primary**:
+   ```bash
+   dc exec pg-primary psql -U hello -d hellodb -c \
+     "SELECT application_name, state, sync_state, replay_lag FROM pg_stat_replication;"
+   ```
+   Amati `state = streaming`. `replay_lag` harusnya null / sangat kecil.
+
+4. **Konfirmasi peran tiap node**:
+   ```bash
+   dc exec pg-primary psql -U hello -d hellodb -c "SELECT pg_is_in_recovery();"
+   # expected: f (false = primary)
+   dc exec pg-standby psql -U hello -d hellodb -c "SELECT pg_is_in_recovery();"
+   # expected: t (true = standby)
+   ```
+
+5. **Simulasi outage — matikan primary**:
+   ```bash
+   dc stop pg-primary
+   ```
+
+6. **Efek ke client**. Coba `INSERT` dari standby SEBELUM promote:
+   ```bash
+   dc exec pg-standby psql -U hello -d hellodb \
+     -c "INSERT INTO orders (item) VALUES ('during-outage');"
+   ```
+   Expected error: `cannot execute INSERT in a read-only transaction`.
+
+   **Pertanyaan**: apa yang menyebabkan standby tetap read-only meski primary
+   mati? (Hint: file `standby.signal` di `$PGDATA` + `primary_conninfo` di
+   `postgresql.auto.conf`.)
+
+7. **Promote standby jadi primary baru**:
+   ```bash
+   dc exec -u postgres pg-standby pg_ctl promote -D /var/lib/postgresql/data
+   # output: server promoted
+   ```
+
+8. **Verifikasi peran berubah**:
+   ```bash
+   dc exec pg-standby psql -U hello -d hellodb -c "SELECT pg_is_in_recovery();"
+   # expected sekarang: f
+   ```
+
+9. **Write test pada primary baru**:
+   ```bash
+   dc exec pg-standby psql -U hello -d hellodb \
+     -c "INSERT INTO orders (item) VALUES ('after-promote'); SELECT * FROM orders ORDER BY id;"
+   ```
+
+10. **Demo split-brain (edukatif, BUKAN praktik produksi)**:
+    ```bash
+    # hidupkan kembali primary lama tanpa re-konfigurasi
+    dc start pg-primary
+    # tulis di primary lama (yang seharusnya sudah tidak valid)
+    dc exec pg-primary psql -U hello -d hellodb \
+      -c "INSERT INTO orders (item) VALUES ('zombie-primary'); SELECT count(*) FROM orders;"
+    ```
+    Bandingkan `count` di kedua node — berbeda. Data sudah diverge.
+
+#### Deliverable peserta
+
+- Output `pg_stat_replication` di langkah 3.
+- Hasil `pg_is_in_recovery()` sebelum dan sesudah promote di kedua node.
+- Jawaban: apa yang secara teknis mengubah standby jadi primary setelah
+  `pg_ctl promote`? (Hint: standby.signal dihapus, WAL replay selesai,
+  node buka untuk write.)
+- Jawaban: dari langkah 10, skenario split-brain menghasilkan divergensi
+  data. Sebut 2 mekanisme produksi untuk mencegahnya (contoh: STONITH,
+  quorum-based leader election, VIP + fencing, synchronous replication
+  dengan majority ack).
+
+#### Reset
+
+```bash
+dc down -v && dc up -d
+```
+
+Butuh ~20-30 detik sampai kedua container healthy kembali (pg_basebackup
+harus re-bootstrap standby dari primary yang baru dibuat).
 
 ---
 

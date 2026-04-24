@@ -32,9 +32,14 @@ services:
       POSTGRES_PASSWORD: hello
       POSTGRES_DB: hellodb
     ports:
-      - "5432:5432"
+      # Publish ke 25432 (bukan 5432) supaya tidak bentrok dengan Postgres
+      # sistem yang biasanya sudah listen di 5432. Dalam docker network,
+      # app tetap connect ke "db:5432".
+      - "25432:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      # postgres:18-alpine menyimpan data di /var/lib/postgresql/18/docker.
+      # Mount parent dir supaya cocok dengan layout versioned bawaan image.
+      - db-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hello -d hellodb"]
       interval: 5s
@@ -98,12 +103,9 @@ services:
       - app1
       - app2
       - app3
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8404/stats >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
+    # Tidak ada healthcheck untuk lb: HAProxy process keluar kalau crash,
+    # sehingga container status sudah cukup sebagai sinyal. Active health-check
+    # antar backend dilakukan oleh HAProxy sendiri di haproxy.cfg.
 
 volumes:
   db-data:
