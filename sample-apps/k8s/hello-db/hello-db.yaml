@@ -1,0 +1,108 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-db-app
+  labels:
+    app: hello-db
+spec:
+  # Ini yang menggantikan app1/app2/app3 di docker-compose.ha.yml.
+  # Ubah angka ini dan apply — k8s otomatis tambah/kurang pod.
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hello-db
+  # RollingUpdate: saat image diganti, k8s naikkan 1 pod baru dulu sampai
+  # Ready, lalu bunuh 1 pod lama. maxUnavailable=0 = zero-downtime.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: hello-db
+    spec:
+      containers:
+        - name: app
+          image: endymuhardin/hello-db-go:2026.04.02
+          ports:
+            - containerPort: 8080
+              name: http
+          # Semua key di ConfigMap akan jadi env var di container ini.
+          # Lebih ringkas dibanding env: satu-satu.
+          envFrom:
+            - configMapRef:
+                name: hello-db-config
+          env:
+            # Downward API: ambil nama pod yang di-assign k8s, pakai
+            # sebagai INSTANCE_ID. Tiap pod dapat nama unik otomatis
+            # (hello-db-app-<hash>-<suffix>), jadi tidak perlu hardcode
+            # app1/app2/app3 seperti di docker-compose.
+            - name: INSTANCE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # Password di-reference dari Secret, bukan ConfigMap.
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: hello-db-secret
+                  key: password
+          # readinessProbe: k8s tidak kirim traffic ke pod ini sampai
+          # probe balik 200. Pengganti `depends_on: service_healthy`.
+          # /ready endpoint ping DB dulu, jadi pod "Ready" hanya kalau
+          # koneksi DB juga sehat.
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            failureThreshold: 2
+          # livenessProbe: kalau failed, k8s restart container. /health
+          # tidak ping DB — kita tidak mau pod di-restart hanya karena
+          # DB sebentar down (connectivity issue, bukan bug app).
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-db
+  labels:
+    app: hello-db
+spec:
+  # Service = pengganti HAProxy + haproxy.cfg dari compose. k8s otomatis
+  # LB round-robin ke semua pod yang lulus readinessProbe. Nol config.
+  #
+  # type=LoadBalancer di k3s di-handle oleh ServiceLB bawaan (dulu
+  # bernama klipper-lb). Pod svclb-hello-db-... di-create otomatis dan
+  # bind port 8080 di host network node. EXTERNAL-IP otomatis di-set
+  # ke IP node. Di cluster cloud (EKS/GKE/AKS), type=LoadBalancer
+  # akan provision external LB cloud — pola yang sama, implementasi beda.
+  #
+  # nodePort eksplisit 30080: fallback access kalau port 8080 di
+  # firewall host ditutup. Range 30000-32767 sudah dibuka oleh
+  # role k3s.
+  selector:
+    app: hello-db
+  ports:
+    - port: 8080
+      targetPort: http
+      nodePort: 30080
+      name: http
+  type: LoadBalancer

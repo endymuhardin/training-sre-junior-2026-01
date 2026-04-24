@@ -1,0 +1,119 @@
+---
+# Secret & ConfigMap dipisah: Secret untuk nilai sensitif (password),
+# ConfigMap untuk nilai non-sensitif. Pembagian ini tidak mengubah
+# runtime behavior — tapi di cluster production, Secret bisa di-encrypt
+# at-rest, akses lebih ketat via RBAC, dan bisa di-rotate tanpa edit
+# manifest non-sensitif.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hello-db-config
+data:
+  # Dipakai bersama oleh postgres (POSTGRES_USER/DB) dan hello-db (DB_*).
+  # Nama key-nya sama dengan nama env var yang dipakai target app.
+  PORT: "8080"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_USER: "hello"
+  DB_NAME: "hellodb"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hello-db-secret
+type: Opaque
+stringData:
+  password: "hello"
+---
+# PersistentVolumeClaim: minta penyimpanan persisten 1 Gi. k3s
+# sudah bundling `local-path` StorageClass sebagai default — PV di-provision
+# otomatis saat pertama pod mount PVC ini (WaitForFirstConsumer binding).
+# Data survive pod restart/delete; hanya hilang kalau PVC sendiri di-delete.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18-alpine
+          ports:
+            - containerPort: 5432
+              name: pg
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: hello-db-config
+                  key: DB_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: hello-db-config
+                  key: DB_NAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: hello-db-secret
+                  key: password
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "hello", "-d", "hellodb"]
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "hello", "-d", "hellodb"]
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: pg
+  # ClusterIP = hanya reachable dari dalam cluster. Hello-db app pakai
+  # DNS name "postgres" (= nama service) untuk connect.
+  type: ClusterIP
