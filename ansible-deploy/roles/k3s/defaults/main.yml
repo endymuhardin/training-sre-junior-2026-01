@@ -1,0 +1,25 @@
+---
+# Default vars untuk role k3s. Override di inventory atau group_vars.
+
+# Versi k3s yang di-pin ke channel stable saat role ini ditulis
+# (2026-04-24, dari https://update.k3s.io/v1-release/channels).
+# Pinning penting untuk training supaya semua peserta punya versi sama.
+# Cek rilis terbaru: curl -s https://update.k3s.io/v1-release/channels
+k3s_version: "v1.34.6+k3s1"
+
+# Flag installer k3s. --disable=traefik karena sesi ingress belum
+# relevan. write-kubeconfig-mode=644 supaya user non-root bisa read.
+k3s_install_args: >-
+  --write-kubeconfig-mode=644
+  --disable=traefik
+
+# Metrics-server manifest. Versi default terbaru; pin kalau mau
+# reproducibility ketat.
+metrics_server_manifest_url: >-
+  https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+# k3s kubelet serve cert-nya self-signed → metrics-server default
+# menolak scrape. Flag ini me-nonaktifkan verifikasi TLS ke kubelet.
+# Aman untuk training; di produksi ganti dengan cert rotation proper.
+metrics_server_extra_args:
+  - "--kubelet-insecure-tls"

@@ -1,0 +1,166 @@
+---
+# Install k3s single-node + metrics-server. Idempotent — aman di-run
+# berulang kali. Target: RHEL 9 VPS peserta training.
+
+- name: Populate service facts untuk deteksi firewalld
+  service_facts:
+
+- name: Izinkan trafik antar-pod dan service lewat firewalld
+  # k3s pakai flannel CNI, pod CIDR default 10.42.0.0/16, service CIDR
+  # 10.43.0.0/16. Masukkan CIDR ini ke zone "trusted" supaya trafik
+  # pod→pod dan metrics-server→kubelet (port 10250) tidak diblok.
+  ansible.posix.firewalld:
+    zone: trusted
+    source: "{{ item }}"
+    state: enabled
+    permanent: yes
+    immediate: yes
+  loop:
+    - "10.42.0.0/16"
+    - "10.43.0.0/16"
+  # Skip kalau firewalld tidak aktif (bukan RHEL/Rocky default, atau
+  # di-disable manual).
+  when: ansible_facts.services['firewalld.service'].state | default('') == 'running'
+
+- name: Izinkan port kubelet (10250/tcp) di firewalld
+  ansible.posix.firewalld:
+    port: 10250/tcp
+    state: enabled
+    permanent: yes
+    immediate: yes
+  when: ansible_facts.services['firewalld.service'].state | default('') == 'running'
+
+- name: Izinkan NodePort range (30000-32767/tcp) di firewalld
+  # Default range Service type=NodePort. Dibuka supaya peserta bisa
+  # akses service dari laptop lewat IP VPS, misal curl http://VPS:30080.
+  ansible.posix.firewalld:
+    port: "30000-32767/tcp"
+    state: enabled
+    permanent: yes
+    immediate: yes
+  when: ansible_facts.services['firewalld.service'].state | default('') == 'running'
+
+- name: Izinkan Kubernetes API (6443/tcp) di firewalld
+  # Supaya peserta bisa remote kubectl ke cluster dari laptop pakai
+  # kubeconfig yang di-copy dari VPS.
+  ansible.posix.firewalld:
+    port: 6443/tcp
+    state: enabled
+    permanent: yes
+    immediate: yes
+  when: ansible_facts.services['firewalld.service'].state | default('') == 'running'
+
+- name: Cek apakah k3s sudah ter-install
+  stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Install k3s via official installer
+  when: not k3s_binary.stat.exists
+  shell: |
+    curl -sfL https://get.k3s.io | \
+      INSTALL_K3S_VERSION="{{ k3s_version }}" \
+      sh -s - {{ k3s_install_args }}
+  args:
+    # Guard tambahan supaya tidak eksekusi ulang meski register cache
+    # stale (misal di run campuran).
+    creates: /usr/local/bin/k3s
+
+- name: Pastikan service k3s enabled dan running
+  systemd:
+    name: k3s
+    enabled: yes
+    state: started
+
+- name: Tunggu k3s API responsif
+  shell: /usr/local/bin/k3s kubectl get --raw='/readyz'
+  register: k3s_readyz
+  retries: 30
+  delay: 2
+  until: k3s_readyz.rc == 0
+  changed_when: false
+
+- name: Export KUBECONFIG secara global via /etc/profile.d
+  copy:
+    dest: /etc/profile.d/k3s.sh
+    mode: "0644"
+    content: |
+      # Auto-generated oleh ansible role k3s. Jangan diedit manual.
+      export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
+- name: Symlink kubectl standalone ke binary k3s
+  file:
+    src: /usr/local/bin/k3s
+    dest: /usr/local/bin/kubectl
+    state: link
+    force: yes
+
+- name: Tunggu node Ready
+  shell: /usr/local/bin/k3s kubectl wait node --all --for=condition=Ready --timeout=60s
+  register: wait_node
+  changed_when: false
+  # Retry outer supaya tidak fail kalau API sempat restart.
+  retries: 3
+  delay: 5
+  until: wait_node.rc == 0
+
+# --- metrics-server (dibutuhkan oleh lab HPA) -------------------------
+
+- name: Cek apakah metrics-server sudah ter-install
+  shell: /usr/local/bin/k3s kubectl -n kube-system get deployment metrics-server -o name
+  register: ms_exists
+  failed_when: false
+  changed_when: false
+
+- name: Download manifest metrics-server ke staging
+  get_url:
+    url: "{{ metrics_server_manifest_url }}"
+    dest: /root/metrics-server.yaml
+    mode: "0600"
+    force: yes
+  when: ms_exists.rc != 0
+
+- name: Apply metrics-server
+  shell: /usr/local/bin/k3s kubectl apply -f /root/metrics-server.yaml
+  when: ms_exists.rc != 0
+
+- name: Query args metrics-server saat ini
+  # Untuk idempotency: hanya patch kalau flag belum ada di daftar args.
+  # JSONPatch "add" tanpa pre-check akan men-duplikasi flag tiap run.
+  shell: |
+    /usr/local/bin/k3s kubectl -n kube-system get deployment metrics-server \
+      -o jsonpath='{.spec.template.spec.containers[0].args}'
+  register: ms_current_args
+  changed_when: false
+
+- name: Patch metrics-server dengan extra args (hanya kalau belum ada)
+  shell: |
+    /usr/local/bin/k3s kubectl -n kube-system patch deployment metrics-server \
+      --type=json \
+      -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"{{ item }}"}]'
+  loop: "{{ metrics_server_extra_args }}"
+  when: item not in (ms_current_args.stdout | default(''))
+
+- name: Tunggu metrics-server Ready
+  shell: |
+    /usr/local/bin/k3s kubectl -n kube-system wait deployment metrics-server \
+      --for=condition=Available --timeout=120s
+  register: ms_ready
+  changed_when: false
+  retries: 3
+  delay: 5
+  until: ms_ready.rc == 0
+
+- name: Smoke test — kubectl top nodes
+  shell: /usr/local/bin/k3s kubectl top nodes
+  register: top_out
+  changed_when: false
+  # kubectl top butuh ~30 detik setelah metrics-server Ready untuk
+  # pertama kali punya data.
+  retries: 10
+  delay: 6
+  until: top_out.rc == 0
+
+- name: Tampilkan hasil kubectl top nodes
+  debug:
+    var: top_out.stdout_lines

@@ -1,0 +1,15 @@
+---
+# Playbook dedicated untuk bootstrap cluster k3s + metrics-server di
+# VPS peserta training. Dipisah dari site.yml supaya bisa di-run
+# independen (site.yml bersifat all-in-one untuk lab-lab sebelumnya).
+#
+# Jalankan:
+#   cd ansible-deploy
+#   ansible-playbook playbooks/k8s.yml
+#
+# Target: semua host di inventory/development.ini (satu VPS per peserta).
+- name: Bootstrap k3s + metrics-server di VPS peserta
+  hosts: all
+  become: yes
+  roles:
+    - k3s
